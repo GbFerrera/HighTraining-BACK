@@ -27,7 +27,7 @@ app.set("socketio", io);
 
 app.use(cors());
 app.use(express.json());
-
+app.use(routes);
 
 // A função `database()` foi removida, já que o Knex cuida da conexão
 
