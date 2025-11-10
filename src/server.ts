@@ -1,14 +1,13 @@
-require("dotenv/config");
-require("express-async-errors");
-
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const { Server } = require("socket.io");
-const AppError = require("./utils/appError");
-const routes = require("./routes");
-const knex = require("./database/knex"); // Importa o Knex configurado
-const cors = require("cors");
+import "dotenv/config";
+import "express-async-errors";
+import express, { Request, Response, NextFunction } from "express";
+import http from "http";
+import { Server } from "socket.io";
+import swaggerUi from "swagger-ui-express";
+import cors from "cors";
+import AppError from "./utils/AppError";
+import routes from "./routes";
+import { swaggerSpec } from "./configs/swagger";
 
 const app = express();
 const server = http.createServer(app);
@@ -27,11 +26,23 @@ app.set("socketio", io);
 
 app.use(cors());
 app.use(express.json());
+
+// Swagger UI
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "Training App API Documentation"
+}));
+
+// Rota para acessar o JSON do Swagger
+app.get("/api-docs.json", (req: Request, res: Response) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
+
 app.use(routes);
 
-// A função `database()` foi removida, já que o Knex cuida da conexão
-
-app.use((error, request, response, next) => {
+// Error handler
+app.use((error: Error, request: Request, response: Response, next: NextFunction) => {
   if (error instanceof AppError) {
     return response.status(error.statusCode).json({
       status: "error",
@@ -47,10 +58,11 @@ app.use((error, request, response, next) => {
   });
 });
 
+// Socket.io events
 io.on("connection", (socket) => {
   console.log("Novo cliente conectado", socket.id);
 
-  socket.on("register", (company_id) => {
+  socket.on("register", (company_id: string | number) => {
     console.log(`Empresa ${company_id} registrada no socket ${socket.id}`);
     socket.join(String(company_id));
     // Lista todas as salas que o socket está
@@ -64,6 +76,9 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.SERVER_PORT || 3232;
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📚 API Documentation available at http://localhost:${PORT}/api-docs`);
+});
 
-module.exports = { app, io };
+export { app, io };

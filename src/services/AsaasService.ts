@@ -1,7 +1,30 @@
-const axios = require('axios');
+import axios, { AxiosInstance } from 'axios';
+
+interface Customer {
+  name: string;
+  phone: string;
+}
+
+interface PaymentResponse {
+  success: boolean;
+  paymentId?: string;
+  pixQrCode?: string;
+  pixCodeId?: string;
+  status?: string;
+  error?: any;
+}
+
+interface PaymentStatusResponse {
+  success: boolean;
+  status?: string;
+  error?: any;
+}
 
 class AsaasService {
-  constructor(apiKey) {
+  private baseURL: string;
+  private api: AxiosInstance;
+
+  constructor(apiKey: string) {
     this.baseURL = 'https://api.asaas.com/v3';
     
     this.api = axios.create({
@@ -12,7 +35,7 @@ class AsaasService {
     });
   }
 
-  async generatePixPayment(orderId, value, customer) {
+  async generatePixPayment(orderId: number, value: number, customer: Customer): Promise<PaymentResponse> {
     try {
       // Cria ou atualiza o cliente
       const customerResponse = await this.api.post('/customers', {
@@ -37,7 +60,7 @@ class AsaasService {
         pixCodeId: paymentResponse.data.pixCodeId,
         status: paymentResponse.data.status
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao gerar pagamento PIX:', error.response?.data || error.message);
       return {
         success: false,
@@ -46,14 +69,14 @@ class AsaasService {
     }
   }
 
-  async getPaymentStatus(paymentId) {
+  async getPaymentStatus(paymentId: string): Promise<PaymentStatusResponse> {
     try {
       const response = await this.api.get(`/payments/${paymentId}`);
       return {
         success: true,
         status: response.data.status
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao consultar status do pagamento:', error.response?.data || error.message);
       return {
         success: false,
@@ -63,4 +86,4 @@ class AsaasService {
   }
 }
 
-module.exports = AsaasService;
+export default AsaasService;
