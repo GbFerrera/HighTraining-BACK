@@ -6,6 +6,7 @@ const clienteEstatisticRoutes = Router();
 clienteEstatisticRoutes.post("/", clienteEstatisticController.create);
 clienteEstatisticRoutes.get("/", clienteEstatisticController.index);
 clienteEstatisticRoutes.get("/latest/:cliente_id", clienteEstatisticController.getLatest);
+clienteEstatisticRoutes.get("/medidas/:cliente_id", clienteEstatisticController.getMedidas);
 clienteEstatisticRoutes.get("/:id", clienteEstatisticController.show);
 clienteEstatisticRoutes.put("/:id", clienteEstatisticController.update);
 clienteEstatisticRoutes.delete("/:id", clienteEstatisticController.delete);
