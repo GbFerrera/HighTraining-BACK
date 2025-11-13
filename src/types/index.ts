@@ -28,6 +28,7 @@ export interface Cliente {
   password: string;
   phone_number?: string;
   date_of_birth?: string;
+  age?: number;
   gender?: string;
   created_at: string;
   updated_at: string;
@@ -85,6 +86,7 @@ export interface ExerciseTraining {
   id: number;
   training_id: number;
   exercise_id: number;
+  video_url?: string;
   sets?: number;
   reps?: string;
   rest_time?: string;
@@ -100,6 +102,7 @@ export interface CreateClienteDTO {
   treinador_id?: number;
   phone_number?: string;
   date_of_birth?: string;
+  age?: number;
   gender?: string;
 }
 
@@ -110,6 +113,7 @@ export interface UpdateClienteDTO {
   treinador_id?: number;
   phone_number?: string;
   date_of_birth?: string;
+  age?: number;
   gender?: string;
 }
 
@@ -158,6 +162,7 @@ export interface UpdateExerciseDTO {
 export interface CreateExerciseTrainingDTO {
   training_id: number;
   exercise_id: number;
+  video_url?: string;
   sets?: number;
   reps?: string;
   rest_time?: string;
@@ -166,6 +171,7 @@ export interface CreateExerciseTrainingDTO {
 }
 
 export interface UpdateExerciseTrainingDTO {
+  video_url?: string;
   sets?: number;
   reps?: string;
   rest_time?: string;

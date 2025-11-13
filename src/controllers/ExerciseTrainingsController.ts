@@ -6,6 +6,7 @@ import AppError from '../utils/AppError';
 interface CreateExerciseTrainingDTO {
   training_id: number;
   exercise_id: number;
+  video_url?: string;
 }
 
 interface ExerciseTrainingQueryParams {
@@ -38,12 +39,15 @@ class ExerciseTrainingsController {
    *                 type: integer
    *               exercise_id:
    *                 type: integer
+   *               video_url:
+   *                 type: string
+   *                 nullable: true
    *     responses:
    *       201:
    *         description: Exercício vinculado ao treino com sucesso
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { training_id, exercise_id } = req.body as CreateExerciseTrainingDTO;
+    const { training_id, exercise_id, video_url } = req.body as CreateExerciseTrainingDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -90,6 +94,7 @@ class ExerciseTrainingsController {
         admin_id,
         training_id,
         exercise_id,
+        video_url: video_url || null,
         created_at: now,
         updated_at: now,
       })
@@ -98,6 +103,7 @@ class ExerciseTrainingsController {
         "admin_id",
         "training_id",
         "exercise_id",
+        "video_url",
         "created_at",
         "updated_at",
       ]);
@@ -143,6 +149,7 @@ class ExerciseTrainingsController {
         "exercise_trainings.admin_id",
         "exercise_trainings.training_id",
         "exercise_trainings.exercise_id",
+        "exercise_trainings.video_url",
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "trainings.name as training_name",

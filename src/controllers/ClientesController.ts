@@ -46,7 +46,7 @@ class ClientesController {
    *               $ref: '#/components/schemas/Error'
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, email, password, treinador_id, phone_number, date_of_birth, gender } = req.body as CreateClienteDTO;
+    const { name, email, password, treinador_id, phone_number, date_of_birth, age, gender } = req.body as CreateClienteDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -92,6 +92,7 @@ class ClientesController {
         password: hashedPassword,
         phone_number: phone_number || null,
         date_of_birth: date_of_birth || null,
+        age: age || null,
         gender: gender || null,
         created_at: now,
         updated_at: now,
@@ -104,6 +105,7 @@ class ClientesController {
         "email",
         "phone_number",
         "date_of_birth",
+        "age",
         "gender",
         "created_at",
         "updated_at",
@@ -168,6 +170,7 @@ class ClientesController {
         "clientes.email",
         "clientes.phone_number",
         "clientes.date_of_birth",
+        "clientes.age",
         "clientes.gender",
         "clientes.created_at",
         "clientes.updated_at",
@@ -253,6 +256,7 @@ class ClientesController {
         "clientes.email",
         "clientes.phone_number",
         "clientes.date_of_birth",
+        "clientes.age",
         "clientes.gender",
         "clientes.created_at",
         "clientes.updated_at",
@@ -322,7 +326,7 @@ class ClientesController {
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { name, email, password, treinador_id, phone_number, date_of_birth, gender } = req.body as UpdateClienteDTO;
+    const { name, email, password, treinador_id, phone_number, date_of_birth, age, gender } = req.body as UpdateClienteDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -362,6 +366,7 @@ class ClientesController {
       treinador_id: treinador_id !== undefined ? treinador_id : cliente.treinador_id,
       phone_number: phone_number !== undefined ? phone_number : cliente.phone_number,
       date_of_birth: date_of_birth !== undefined ? date_of_birth : cliente.date_of_birth,
+      age: age !== undefined ? age : cliente.age,
       gender: gender !== undefined ? gender : cliente.gender,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     };
@@ -381,6 +386,7 @@ class ClientesController {
         "clientes.email",
         "clientes.phone_number",
         "clientes.date_of_birth",
+        "clientes.age",
         "clientes.gender",
         "clientes.created_at",
         "clientes.updated_at",
