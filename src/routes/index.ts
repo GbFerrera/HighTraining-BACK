@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import sessionsRoutes from './sessions.routes';
 import adminsRoutes from './admins.routes';
 import treinadoresRoutes from './treinadores.routes';
 import clientesRoutes from './clientes.routes';
@@ -11,6 +12,7 @@ import exerciseTrainingsRoutes from './exerciseTrainings.routes';
 
 const routes = Router();
 
+routes.use("/sessions", sessionsRoutes);
 routes.use("/admins", adminsRoutes);
 routes.use("/treinadores", treinadoresRoutes);
 routes.use("/clientes", clientesRoutes);
