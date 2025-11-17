@@ -7,6 +7,11 @@ interface CreateExerciseTrainingDTO {
   training_id: number;
   exercise_id: number;
   video_url?: string;
+  sets?: number;
+  reps?: number;
+  rest_time?: number;
+  order?: number;
+  notes?: string;
 }
 
 interface ExerciseTrainingQueryParams {
@@ -47,7 +52,7 @@ class ExerciseTrainingsController {
    *         description: Exercício vinculado ao treino com sucesso
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { training_id, exercise_id, video_url } = req.body as CreateExerciseTrainingDTO;
+    const { training_id, exercise_id, video_url, sets, reps, rest_time, order, notes } = req.body as CreateExerciseTrainingDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -95,6 +100,11 @@ class ExerciseTrainingsController {
         training_id,
         exercise_id,
         video_url: video_url || null,
+        sets: sets || null,
+        reps: reps || null,
+        rest_time: rest_time || null,
+        order: order || null,
+        notes: notes || null,
         created_at: now,
         updated_at: now,
       })
@@ -104,6 +114,11 @@ class ExerciseTrainingsController {
         "training_id",
         "exercise_id",
         "video_url",
+        "sets",
+        "reps",
+        "rest_time",
+        "order",
+        "notes",
         "created_at",
         "updated_at",
       ]);
@@ -150,6 +165,11 @@ class ExerciseTrainingsController {
         "exercise_trainings.training_id",
         "exercise_trainings.exercise_id",
         "exercise_trainings.video_url",
+        "exercise_trainings.sets",
+        "exercise_trainings.reps",
+        "exercise_trainings.rest_time",
+        "exercise_trainings.order",
+        "exercise_trainings.notes",
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "trainings.name as training_name",
@@ -157,7 +177,7 @@ class ExerciseTrainingsController {
         "exercises.repetitions",
         "exercises.series",
         "exercises.carga",
-        "exercises.notes"
+        "exercises.notes as exercise_notes"
       )
       .leftJoin("trainings", "exercise_trainings.training_id", "trainings.id")
       .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
@@ -215,6 +235,12 @@ class ExerciseTrainingsController {
         "exercise_trainings.admin_id",
         "exercise_trainings.training_id",
         "exercise_trainings.exercise_id",
+        "exercise_trainings.video_url",
+        "exercise_trainings.sets",
+        "exercise_trainings.reps",
+        "exercise_trainings.rest_time",
+        "exercise_trainings.order",
+        "exercise_trainings.notes",
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "trainings.name as training_name",
@@ -222,7 +248,7 @@ class ExerciseTrainingsController {
         "exercises.repetitions",
         "exercises.series",
         "exercises.carga",
-        "exercises.notes"
+        "exercises.notes as exercise_notes"
       )
       .leftJoin("trainings", "exercise_trainings.training_id", "trainings.id")
       .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
@@ -315,16 +341,23 @@ class ExerciseTrainingsController {
         "exercise_trainings.admin_id",
         "exercise_trainings.training_id",
         "exercise_trainings.exercise_id",
+        "exercise_trainings.video_url",
+        "exercise_trainings.sets",
+        "exercise_trainings.reps",
+        "exercise_trainings.rest_time",
+        "exercise_trainings.order",
+        "exercise_trainings.notes",
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "exercises.name as exercise_name",
         "exercises.repetitions",
         "exercises.series",
         "exercises.carga",
-        "exercises.notes"
+        "exercises.notes as exercise_notes"
       )
       .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
       .where({ "exercise_trainings.training_id": training_id, "exercise_trainings.admin_id": admin_id })
+      .orderBy("exercise_trainings.order", "asc")
       .orderBy("exercises.name", "asc");
     
     return res.json(exercises);

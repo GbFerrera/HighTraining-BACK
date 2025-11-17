@@ -10,6 +10,11 @@ interface CreateExerciseDTO {
   carga?: string;
   notes?: string;
   treinador_id?: number;
+  muscle_group?: string;
+  equipment?: string;
+  difficulty?: string;
+  video_url?: string;
+  image_url?: string;
 }
 
 interface UpdateExerciseDTO {
@@ -19,6 +24,11 @@ interface UpdateExerciseDTO {
   carga?: string;
   notes?: string;
   treinador_id?: number;
+  muscle_group?: string;
+  equipment?: string;
+  difficulty?: string;
+  video_url?: string;
+  image_url?: string;
 }
 
 interface ExerciseQueryParams {
@@ -50,7 +60,7 @@ class ExercisesController {
    *         description: Exercício criado com sucesso
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, repetitions, series, carga, notes, treinador_id } = req.body as CreateExerciseDTO;
+    const { name, repetitions, series, carga, notes, treinador_id, muscle_group, equipment, difficulty, video_url, image_url } = req.body as CreateExerciseDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -87,6 +97,11 @@ class ExercisesController {
         series: series || null,
         carga: carga || null,
         notes: notes || null,
+        muscle_group: muscle_group || null,
+        equipment: equipment || null,
+        difficulty: difficulty || null,
+        video_url: video_url || null,
+        image_url: image_url || null,
         created_at: now,
         updated_at: now,
       })
@@ -99,6 +114,11 @@ class ExercisesController {
         "series",
         "carga",
         "notes",
+        "muscle_group",
+        "equipment",
+        "difficulty",
+        "video_url",
+        "image_url",
         "created_at",
         "updated_at",
       ]);
@@ -148,6 +168,11 @@ class ExercisesController {
         "exercises.series",
         "exercises.carga",
         "exercises.notes",
+        "exercises.muscle_group",
+        "exercises.equipment",
+        "exercises.difficulty",
+        "exercises.video_url",
+        "exercises.image_url",
         "exercises.created_at",
         "exercises.updated_at",
         "treinadores.name as treinador_name"
@@ -214,6 +239,11 @@ class ExercisesController {
         "exercises.series",
         "exercises.carga",
         "exercises.notes",
+        "exercises.muscle_group",
+        "exercises.equipment",
+        "exercises.difficulty",
+        "exercises.video_url",
+        "exercises.image_url",
         "exercises.created_at",
         "exercises.updated_at",
         "treinadores.name as treinador_name"
@@ -256,64 +286,84 @@ class ExercisesController {
    *         description: Exercício atualizado com sucesso
    */
   async update(req: Request, res: Response): Promise<Response> {
-    const { id } = req.params;
-    const { name, repetitions, series, carga, notes, treinador_id } = req.body as UpdateExerciseDTO;
-    const admin_id = req.headers.admin_id as string;
+    try {
+      const { id } = req.params;
+      const { name, repetitions, series, carga, notes, treinador_id, muscle_group, equipment, difficulty, video_url, image_url } = req.body as UpdateExerciseDTO;
+      const admin_id = req.headers.admin_id as string;
 
-    if (!admin_id) {
-      throw new AppError("É necessário enviar o ID do admin", 400);
-    }
+      console.log('Update request body:', req.body);
+      console.log('Update params:', { id, admin_id });
 
-    const exercise = await knex("exercises").where({ id, admin_id }).first();
-
-    if (!exercise) {
-      throw new AppError("Exercício não encontrado", 404);
-    }
-
-    if (treinador_id) {
-      const treinador = await knex("treinadores")
-        .where({ id: treinador_id, admin_id })
-        .first();
-      
-      if (!treinador) {
-        throw new AppError("Treinador não encontrado", 404);
+      if (!admin_id) {
+        throw new AppError("É necessário enviar o ID do admin", 400);
       }
+
+      const exercise = await knex("exercises").where({ id, admin_id }).first();
+
+      if (!exercise) {
+        throw new AppError("Exercício não encontrado", 404);
+      }
+
+      if (treinador_id) {
+        const treinador = await knex("treinadores")
+          .where({ id: treinador_id, admin_id })
+          .first();
+        
+        if (!treinador) {
+          throw new AppError("Treinador não encontrado", 404);
+        }
+      }
+
+      const updatedData: any = {
+        name: name || exercise.name,
+        repetitions: repetitions !== undefined ? repetitions : exercise.repetitions,
+        series: series !== undefined ? series : exercise.series,
+        carga: carga !== undefined ? carga : exercise.carga,
+        notes: notes !== undefined ? notes : exercise.notes,
+        treinador_id: treinador_id !== undefined ? treinador_id : exercise.treinador_id,
+        muscle_group: muscle_group !== undefined ? muscle_group : exercise.muscle_group,
+        equipment: equipment !== undefined ? equipment : exercise.equipment,
+        difficulty: difficulty !== undefined ? difficulty : exercise.difficulty,
+        video_url: video_url !== undefined ? video_url : exercise.video_url,
+        image_url: image_url !== undefined ? image_url : exercise.image_url,
+        updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
+      };
+
+      console.log('Updated data:', updatedData);
+
+      await knex("exercises").update(updatedData).where({ id, admin_id });
+
+      const updatedExercise = await knex("exercises")
+        .select(
+          "exercises.id",
+          "exercises.admin_id",
+          "exercises.treinador_id",
+          "exercises.name",
+          "exercises.repetitions",
+          "exercises.series",
+          "exercises.carga",
+          "exercises.notes",
+          "exercises.muscle_group",
+          "exercises.equipment",
+          "exercises.difficulty",
+          "exercises.video_url",
+          "exercises.image_url",
+          "exercises.created_at",
+          "exercises.updated_at",
+          "treinadores.name as treinador_name"
+        )
+        .leftJoin("treinadores", "exercises.treinador_id", "treinadores.id")
+        .where({ "exercises.id": id, "exercises.admin_id": admin_id })
+        .first();
+
+      return res.status(200).json({
+        message: "Exercício atualizado com sucesso",
+        exercise: updatedExercise
+      });
+    } catch (error) {
+      console.error('Error updating exercise:', error);
+      throw error;
     }
-
-    const updatedData: any = {
-      name: name || exercise.name,
-      repetitions: repetitions !== undefined ? repetitions : exercise.repetitions,
-      series: series !== undefined ? series : exercise.series,
-      carga: carga !== undefined ? carga : exercise.carga,
-      notes: notes !== undefined ? notes : exercise.notes,
-      treinador_id: treinador_id !== undefined ? treinador_id : exercise.treinador_id,
-      updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
-    };
-
-    await knex("exercises").update(updatedData).where({ id, admin_id });
-
-    const updatedExercise = await knex("exercises")
-      .select(
-        "exercises.id",
-        "exercises.admin_id",
-        "exercises.treinador_id",
-        "exercises.name",
-        "exercises.repetitions",
-        "exercises.series",
-        "exercises.carga",
-        "exercises.notes",
-        "exercises.created_at",
-        "exercises.updated_at",
-        "treinadores.name as treinador_name"
-      )
-      .leftJoin("treinadores", "exercises.treinador_id", "treinadores.id")
-      .where({ "exercises.id": id, "exercises.admin_id": admin_id })
-      .first();
-
-    return res.status(200).json({
-      message: "Exercício atualizado com sucesso",
-      exercise: updatedExercise
-    });
   }
 
   /**

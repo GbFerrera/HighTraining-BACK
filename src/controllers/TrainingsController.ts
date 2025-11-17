@@ -5,21 +5,15 @@ import AppError from '../utils/AppError';
 
 interface CreateTrainingDTO {
   name: string;
-  duration?: string;
-  repeticoes?: string;
-  video_url?: string;
-  carga?: string;
   notes?: string;
-  treinador_id?: number;
+  day_of_week?: string;
+  treinador_id: number;
 }
 
 interface UpdateTrainingDTO {
   name?: string;
-  duration?: string;
-  repeticoes?: string;
-  video_url?: string;
-  carga?: string;
   notes?: string;
+  day_of_week?: string;
   treinador_id?: number;
 }
 
@@ -35,69 +29,46 @@ class TrainingsController {
    *   post:
    *     summary: Criar novo treino
    *     tags: [Trainings]
-   *     parameters:
-   *       - in: header
-   *         name: admin_id
-   *         required: true
-   *         schema:
-   *           type: integer
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [name]
+   *             required: [name, treinador_id]
    *             properties:
    *               name:
    *                 type: string
-   *               duration:
-   *                 type: string
-   *                 nullable: true
-   *               repeticoes:
-   *                 type: string
-   *                 nullable: true
-   *               video_url:
-   *                 type: string
-   *                 nullable: true
-   *               carga:
-   *                 type: string
-   *                 nullable: true
    *               notes:
+   *                 type: string
+   *                 nullable: true
+   *               day_of_week:
    *                 type: string
    *                 nullable: true
    *               treinador_id:
    *                 type: integer
-   *                 nullable: true
    *     responses:
    *       201:
    *         description: Treino criado com sucesso
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, duration, repeticoes, video_url, carga, notes, treinador_id } = req.body as CreateTrainingDTO;
-    const admin_id = req.headers.admin_id as string;
-
-    if (!admin_id) {
-      throw new AppError("O ID do admin é obrigatório", 400);
-    }
+    const { name, notes, day_of_week, treinador_id } = req.body as CreateTrainingDTO;
+    const admin_id = req.headers.admin_id as string || '1';
 
     if (!name) {
       throw new AppError("Nome do treino é obrigatório", 400);
     }
 
-    const admin = await knex("admins").where({ id: admin_id }).first();
-    if (!admin) {
-      throw new AppError("Admin não encontrado", 404);
+    if (!treinador_id) {
+      throw new AppError("ID do treinador é obrigatório", 400);
     }
 
-    if (treinador_id) {
-      const treinador = await knex("treinadores")
-        .where({ id: treinador_id, admin_id })
-        .first();
-      
-      if (!treinador) {
-        throw new AppError("Treinador não encontrado", 404);
-      }
+    const treinador = await knex("treinadores")
+      .where({ id: treinador_id })
+      .first();
+    
+    if (!treinador) {
+      throw new AppError("Treinador não encontrado", 404);
     }
 
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
@@ -105,12 +76,9 @@ class TrainingsController {
     const [training] = await knex("trainings")
       .insert({
         admin_id,
-        treinador_id: treinador_id || null,
+        treinador_id,
         name,
-        duration: duration || null,
-        repeticoes: repeticoes || null,
-        video_url: video_url || null,
-        carga: carga || null,
+        day_of_week: day_of_week || null,
         notes: notes || null,
         created_at: now,
         updated_at: now,
@@ -120,10 +88,7 @@ class TrainingsController {
         "admin_id",
         "treinador_id",
         "name",
-        "duration",
-        "repeticoes",
-        "video_url",
-        "carga",
+        "day_of_week",
         "notes",
         "created_at",
         "updated_at",
@@ -139,11 +104,6 @@ class TrainingsController {
    *     summary: Listar todos os treinos
    *     tags: [Trainings]
    *     parameters:
-   *       - in: header
-   *         name: admin_id
-   *         required: true
-   *         schema:
-   *           type: integer
    *       - in: query
    *         name: term
    *         schema:
@@ -157,11 +117,11 @@ class TrainingsController {
    *         description: Lista de treinos
    */
   async index(req: Request, res: Response): Promise<Response> {
-    const admin_id = req.headers.admin_id as string;
+    const admin_id = req.headers.admin_id as string || '1';
     const { term, treinador_id } = req.query as TrainingQueryParams;
 
-    if (!admin_id) {
-      throw new AppError("É necessário enviar o ID do admin", 400);
+    if (!treinador_id) {
+      throw new AppError("É necessário enviar o ID do treinador", 400);
     }
 
     let trainingsQuery = knex("trainings")
@@ -170,27 +130,21 @@ class TrainingsController {
         "trainings.admin_id",
         "trainings.treinador_id",
         "trainings.name",
-        "trainings.duration",
-        "trainings.repeticoes",
-        "trainings.video_url",
-        "trainings.carga",
+        "trainings.day_of_week",
         "trainings.notes",
         "trainings.created_at",
         "trainings.updated_at",
         "treinadores.name as treinador_name"
       )
       .leftJoin("treinadores", "trainings.treinador_id", "treinadores.id")
-      .where("trainings.admin_id", admin_id);
+      .where("trainings.admin_id", admin_id)
+      .where("trainings.treinador_id", treinador_id);
 
     if (term) {
       trainingsQuery = trainingsQuery.where(function() {
         this.where("trainings.name", "like", `%${term}%`)
           .orWhere("trainings.notes", "like", `%${term}%`);
       });
-    }
-
-    if (treinador_id) {
-      trainingsQuery = trainingsQuery.where("trainings.treinador_id", treinador_id);
     }
 
     const trainings = await trainingsQuery.orderBy("trainings.name", "asc");
@@ -210,25 +164,16 @@ class TrainingsController {
    *         required: true
    *         schema:
    *           type: integer
-   *       - in: header
-   *         name: admin_id
-   *         required: true
-   *         schema:
-   *           type: integer
    *     responses:
    *       200:
    *         description: Treino encontrado
    */
   async show(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const admin_id = req.headers.admin_id as string;
+    const admin_id = req.headers.admin_id as string || '1';
 
     if (!id) {
       throw new AppError("É necessário enviar o ID do treino", 400);
-    }
-
-    if (!admin_id) {
-      throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
     const training = await knex("trainings")
@@ -237,10 +182,7 @@ class TrainingsController {
         "trainings.admin_id",
         "trainings.treinador_id",
         "trainings.name",
-        "trainings.duration",
-        "trainings.repeticoes",
-        "trainings.video_url",
-        "trainings.carga",
+        "trainings.day_of_week",
         "trainings.notes",
         "trainings.created_at",
         "trainings.updated_at",
@@ -269,11 +211,6 @@ class TrainingsController {
    *         required: true
    *         schema:
    *           type: integer
-   *       - in: header
-   *         name: admin_id
-   *         required: true
-   *         schema:
-   *           type: integer
    *     requestBody:
    *       content:
    *         application/json:
@@ -282,15 +219,9 @@ class TrainingsController {
    *             properties:
    *               name:
    *                 type: string
-   *               duration:
-   *                 type: string
-   *               repeticoes:
-   *                 type: string
-   *               video_url:
-   *                 type: string
-   *               carga:
-   *                 type: string
    *               notes:
+   *                 type: string
+   *               day_of_week:
    *                 type: string
    *               treinador_id:
    *                 type: integer
@@ -300,12 +231,8 @@ class TrainingsController {
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { name, duration, repeticoes, video_url, carga, notes, treinador_id } = req.body as UpdateTrainingDTO;
-    const admin_id = req.headers.admin_id as string;
-
-    if (!admin_id) {
-      throw new AppError("É necessário enviar o ID do admin", 400);
-    }
+    const { name, notes, day_of_week, treinador_id } = req.body as UpdateTrainingDTO;
+    const admin_id = req.headers.admin_id as string || '1';
 
     const training = await knex("trainings").where({ id, admin_id }).first();
 
@@ -315,7 +242,7 @@ class TrainingsController {
 
     if (treinador_id) {
       const treinador = await knex("treinadores")
-        .where({ id: treinador_id, admin_id })
+        .where({ id: treinador_id })
         .first();
       
       if (!treinador) {
@@ -325,10 +252,7 @@ class TrainingsController {
 
     const updatedData: any = {
       name: name || training.name,
-      duration: duration !== undefined ? duration : training.duration,
-      repeticoes: repeticoes !== undefined ? repeticoes : training.repeticoes,
-      video_url: video_url !== undefined ? video_url : training.video_url,
-      carga: carga !== undefined ? carga : training.carga,
+      day_of_week: day_of_week !== undefined ? day_of_week : training.day_of_week,
       notes: notes !== undefined ? notes : training.notes,
       treinador_id: treinador_id !== undefined ? treinador_id : training.treinador_id,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
@@ -342,10 +266,7 @@ class TrainingsController {
         "trainings.admin_id",
         "trainings.treinador_id",
         "trainings.name",
-        "trainings.duration",
-        "trainings.repeticoes",
-        "trainings.video_url",
-        "trainings.carga",
+        "trainings.day_of_week",
         "trainings.notes",
         "trainings.created_at",
         "trainings.updated_at",
@@ -373,21 +294,16 @@ class TrainingsController {
    *         required: true
    *         schema:
    *           type: integer
-   *       - in: header
-   *         name: admin_id
-   *         required: true
-   *         schema:
-   *           type: integer
    *     responses:
    *       200:
    *         description: Treino excluído com sucesso
    */
   async delete(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const admin_id = req.headers.admin_id as string;
+    const admin_id = req.headers.admin_id as string || '1';
 
-    if (!admin_id || !id) {
-      throw new AppError("É necessário enviar o ID do admin e do treino", 400);
+    if (!id) {
+      throw new AppError("É necessário enviar o ID do treino", 400);
     }
 
     const training = await knex("trainings").where({ id, admin_id }).first();
