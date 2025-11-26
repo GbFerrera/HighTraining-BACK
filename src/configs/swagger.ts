@@ -230,6 +230,108 @@ const options: swaggerJsdoc.Options = {
             },
           },
         },
+        ClientePhoto: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            cliente_id: { type: 'number', example: 1 },
+            filename: { type: 'string', example: 'a1b2c3d4e5f6-1732635600000.jpg' },
+            filepath: { type: 'string', example: '/path/to/uploads/cliente-photos/a1b2c3d4e5f6-1732635600000.jpg' },
+            mimetype: { type: 'string', example: 'image/jpeg' },
+            size: { type: 'number', example: 245678 },
+            is_profile: { type: 'boolean', example: true },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        TreinadorPhoto: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            treinador_id: { type: 'number', example: 1 },
+            filename: { type: 'string', example: 'b2c3d4e5f6g7-1732635600000.jpg' },
+            filepath: { type: 'string', example: '/path/to/uploads/treinador-photos/b2c3d4e5f6g7-1732635600000.jpg' },
+            mimetype: { type: 'string', example: 'image/jpeg' },
+            size: { type: 'number', example: 198765 },
+            is_profile: { type: 'boolean', example: true },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        Feedback: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            admin_id: { type: 'number', example: 1 },
+            treinador_id: { type: 'number', example: 2 },
+            cliente_id: { type: 'number', example: 3 },
+            note: { type: 'string', example: 'Cliente demonstrou boa evolução nos exercícios de peito. Recomendo aumentar a carga na próxima semana.' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            admin_name: { type: 'string', nullable: true, example: 'Admin Silva' },
+            treinador_name: { type: 'string', nullable: true, example: 'Carlos Treinador' },
+            cliente_name: { type: 'string', nullable: true, example: 'João Cliente' },
+          },
+        },
+        CreateFeedbackDTO: {
+          type: 'object',
+          required: ['admin_id', 'treinador_id', 'cliente_id', 'note'],
+          properties: {
+            admin_id: { type: 'number', example: 1, description: 'ID do admin' },
+            treinador_id: { type: 'number', example: 2, description: 'ID do treinador' },
+            cliente_id: { type: 'number', example: 3, description: 'ID do cliente' },
+            note: { type: 'string', example: 'Cliente demonstrou boa evolução nos exercícios de peito. Recomendo aumentar a carga na próxima semana.', description: 'Descrição do feedback' },
+          },
+        },
+        UpdateFeedbackDTO: {
+          type: 'object',
+          required: ['note'],
+          properties: {
+            note: { type: 'string', example: 'Feedback atualizado: Cliente precisa focar mais na execução dos movimentos.', description: 'Nova descrição do feedback' },
+          },
+        },
+        FeedbackListResponse: {
+          type: 'object',
+          properties: {
+            feedbacks: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Feedback' },
+            },
+            pagination: {
+              type: 'object',
+              properties: {
+                page: { type: 'number', example: 1 },
+                limit: { type: 'number', example: 10 },
+                total: { type: 'number', example: 25 },
+                pages: { type: 'number', example: 3 },
+              },
+            },
+          },
+        },
+        FeedbackPhoto: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            feedback_id: { type: 'number', example: 1 },
+            filename: { type: 'string', example: 'c3d4e5f6g7h8-1732635600000.jpg' },
+            filepath: { type: 'string', example: '/path/to/uploads/feedback-photos/c3d4e5f6g7h8-1732635600000.jpg' },
+            mimetype: { type: 'string', example: 'image/jpeg' },
+            size: { type: 'number', example: 156789 },
+            description: { type: 'string', nullable: true, example: 'Foto mostrando evolução do cliente' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            feedback_note: { type: 'string', nullable: true, example: 'Cliente demonstrou boa evolução' },
+            admin_name: { type: 'string', nullable: true, example: 'Admin Silva' },
+            treinador_name: { type: 'string', nullable: true, example: 'Carlos Treinador' },
+            cliente_name: { type: 'string', nullable: true, example: 'João Cliente' },
+          },
+        },
+        UpdateFeedbackPhotoDTO: {
+          type: 'object',
+          properties: {
+            description: { type: 'string', nullable: true, example: 'Nova descrição da foto', description: 'Descrição da foto' },
+          },
+        },
       },
     },
     security: [

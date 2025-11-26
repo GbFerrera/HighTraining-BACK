@@ -9,6 +9,10 @@ import clienteEstatisticRoutes from './clienteEstatistic.routes';
 import agendaPointRoutes from './agendaPoint.routes';
 import exercisesRoutes from './exercises.routes';
 import exerciseTrainingsRoutes from './exerciseTrainings.routes';
+import clientePhotosRoutes from './clientePhotos.routes';
+import treinadorPhotosRoutes from './treinadorPhotos.routes';
+import feedbackRoutes from './feedback.routes';
+import feedbackPhotosRoutes from './feedbackPhotos.routes';
 
 const routes = Router();
 
@@ -22,5 +26,9 @@ routes.use("/cliente-estatistic", clienteEstatisticRoutes);
 routes.use("/agenda-point", agendaPointRoutes);
 routes.use("/exercises", exercisesRoutes);
 routes.use("/exercise-trainings", exerciseTrainingsRoutes);
+routes.use("/clientes", clientePhotosRoutes);
+routes.use("/treinadores", treinadorPhotosRoutes);
+routes.use("/feedback", feedbackRoutes);
+routes.use("/feedback", feedbackPhotosRoutes);
 
 export default routes;

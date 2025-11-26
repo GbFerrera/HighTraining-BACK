@@ -5,6 +5,7 @@ import http from "http";
 import { Server } from "socket.io";
 import swaggerUi from "swagger-ui-express";
 import cors from "cors";
+import multer from "multer";
 import AppError from "./utils/AppError";
 import routes from "./routes";
 import { swaggerSpec } from "./configs/swagger";
@@ -45,6 +46,51 @@ app.use(routes);
 app.use((error: Error, request: Request, response: Response, next: NextFunction) => {
   if (error instanceof AppError) {
     return response.status(error.statusCode).json({
+      status: "error",
+      message: error.message,
+    });
+  }
+
+  // Tratamento específico para erros do Multer
+  if (error instanceof multer.MulterError) {
+    let message = "Erro no upload do arquivo";
+    let statusCode = 400;
+
+    switch (error.code) {
+      case 'LIMIT_FILE_SIZE':
+        message = "Arquivo muito grande. Tamanho máximo permitido: 5MB";
+        break;
+      case 'LIMIT_FILE_COUNT':
+        message = "Muitos arquivos enviados";
+        break;
+      case 'LIMIT_UNEXPECTED_FILE':
+        message = "Campo de arquivo inesperado. Use o campo 'photo'";
+        break;
+      case 'LIMIT_FIELD_KEY':
+        message = "Nome do campo muito longo";
+        break;
+      case 'LIMIT_FIELD_VALUE':
+        message = "Valor do campo muito longo";
+        break;
+      case 'LIMIT_FIELD_COUNT':
+        message = "Muitos campos enviados";
+        break;
+      case 'LIMIT_PART_COUNT':
+        message = "Muitas partes no formulário";
+        break;
+      default:
+        message = error.message || "Erro no upload do arquivo";
+    }
+
+    return response.status(statusCode).json({
+      status: "error",
+      message: message,
+    });
+  }
+
+  // Tratamento para outros erros de validação de arquivo
+  if (error.message && error.message.includes('Tipo de arquivo inválido')) {
+    return response.status(400).json({
       status: "error",
       message: error.message,
     });
