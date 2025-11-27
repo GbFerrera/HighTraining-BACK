@@ -9,6 +9,7 @@ import multer from "multer";
 import AppError from "./utils/AppError";
 import routes from "./routes";
 import { swaggerSpec } from "./configs/swagger";
+import NotificationService from "./services/NotificationService";
 
 const app = express();
 const server = http.createServer(app);
@@ -23,7 +24,11 @@ const io = new Server(server, {
   pingTimeout: 10000,
 });
 
+// Inicializar serviço de notificações
+const notificationService = new NotificationService(io);
+
 app.set("socketio", io);
+app.set("notificationService", notificationService);
 
 app.use(cors());
 app.use(express.json());
@@ -108,12 +113,52 @@ app.use((error: Error, request: Request, response: Response, next: NextFunction)
 io.on("connection", (socket) => {
   console.log("Novo cliente conectado", socket.id);
 
+  // Registro para personal trainers
+  socket.on("register_personal", (treinadorId: string | number) => {
+    const roomName = `personal_${treinadorId}`;
+    socket.join(roomName);
+    console.log(`🏋️ Personal trainer ${treinadorId} registrado no socket ${socket.id} - sala: ${roomName}`);
+    
+    // Confirma o registro
+    socket.emit("registered", { 
+      type: "personal", 
+      id: treinadorId, 
+      room: roomName 
+    });
+  });
+
+  // Registro para alunos
+  socket.on("register_aluno", (alunoId: string | number) => {
+    const roomName = `aluno_${alunoId}`;
+    socket.join(roomName);
+    console.log(`🎓 Aluno ${alunoId} registrado no socket ${socket.id} - sala: ${roomName}`);
+    
+    // Confirma o registro
+    socket.emit("registered", { 
+      type: "aluno", 
+      id: alunoId, 
+      room: roomName 
+    });
+  });
+
+  // Manter compatibilidade com registro antigo
   socket.on("register", (company_id: string | number) => {
     console.log(`Empresa ${company_id} registrada no socket ${socket.id}`);
     socket.join(String(company_id));
-    // Lista todas as salas que o socket está
     const rooms = Array.from(socket.rooms);
     console.log(`Socket ${socket.id} está nas salas:`, rooms);
+  });
+
+  // Evento para testar notificações
+  socket.on("test_notification", (data) => {
+    console.log("🧪 Teste de notificação solicitado:", data);
+    if (data.treinadorId) {
+      notificationService.sendGeneralNotification(
+        data.treinadorId, 
+        "Teste de Notificação 🧪", 
+        "Esta é uma notificação de teste para verificar se o sistema está funcionando!"
+      );
+    }
   });
 
   socket.on("disconnect", () => {

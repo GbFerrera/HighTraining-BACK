@@ -13,6 +13,7 @@ import clientePhotosRoutes from './clientePhotos.routes';
 import treinadorPhotosRoutes from './treinadorPhotos.routes';
 import feedbackRoutes from './feedback.routes';
 import feedbackPhotosRoutes from './feedbackPhotos.routes';
+import notificationsRoutes from './notifications.routes';
 
 const routes = Router();
 
@@ -30,5 +31,6 @@ routes.use("/clientes", clientePhotosRoutes);
 routes.use("/treinadores", treinadorPhotosRoutes);
 routes.use("/feedback", feedbackRoutes);
 routes.use("/feedback", feedbackPhotosRoutes);
+routes.use("/notifications", notificationsRoutes);
 
 export default routes;

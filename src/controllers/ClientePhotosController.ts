@@ -150,7 +150,7 @@ class ClientePhotosController {
       .first();
 
     if (!photo) {
-      throw new AppError('Foto não encontrada', 404);
+      throw new AppError('Foto não encontrada', 404); 
     }
 
     const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', photo.filename);

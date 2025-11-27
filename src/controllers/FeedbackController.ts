@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
+import NotificationService from '../services/NotificationService';
 
 class FeedbackController {
   /**
@@ -80,6 +81,23 @@ class FeedbackController {
     }).returning('*');
 
     const feedback = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+
+    // Enviar notificação para o personal trainer
+    try {
+      const notificationService = req.app.get('notificationService') as NotificationService;
+      if (notificationService) {
+        await notificationService.sendFeedbackNotification(treinador_id, {
+          id: feedback.id,
+          cliente_id,
+          cliente_name: cliente.name,
+          note: feedback.note,
+          created_at: feedback.created_at
+        });
+      }
+    } catch (notificationError) {
+      console.error('Erro ao enviar notificação:', notificationError);
+      // Não falha a criação do feedback se a notificação falhar
+    }
 
     return res.status(201).json(feedback);
   }
