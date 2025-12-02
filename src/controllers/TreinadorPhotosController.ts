@@ -52,14 +52,29 @@ class TreinadorPhotosController {
     const { treinador_id } = req.params;
     const file = req.file;
 
+    console.log('=== UPLOAD FOTO TREINADOR ===');
+    console.log('Treinador ID:', treinador_id);
+    console.log('File recebido:', file ? 'SIM' : 'NÃO');
+    console.log('Headers:', req.headers);
+    console.log('Body keys:', Object.keys(req.body));
+
     // Validar se treinador_id é um número válido
     if (!treinador_id || isNaN(Number(treinador_id))) {
+      console.log('Erro: ID do treinador inválido');
       throw new AppError('ID do treinador inválido', 400);
     }
 
     if (!file) {
+      console.log('Erro: Nenhum arquivo foi enviado');
       throw new AppError('Nenhum arquivo foi enviado', 400);
     }
+
+    console.log('Arquivo detalhes:', {
+      filename: file.filename,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
 
     // Verificar se o treinador existe
     const treinador = await knex('treinadores').where({ id: treinador_id }).first();

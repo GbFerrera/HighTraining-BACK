@@ -5,7 +5,7 @@ import AppError from '../utils/AppError';
 
 class AgendaPointController {
   async create(req: Request, res: Response): Promise<Response> {
-    const { cliente_id, training_date, duration_times, notes } = req.body;
+    const { cliente_id, training_date, duration_times, notes, day_week } = req.body;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) throw new AppError("O ID do admin é obrigatório", 400);
@@ -20,8 +20,8 @@ class AgendaPointController {
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
 
     const [agendaPoint] = await knex("agenda_point")
-      .insert({ admin_id, cliente_id, training_date, duration_times: duration_times || null, notes: notes || null, created_at: now, updated_at: now })
-      .returning(["id", "admin_id", "cliente_id", "training_date", "duration_times", "notes", "created_at", "updated_at"]);
+      .insert({ admin_id, cliente_id, training_date, duration_times: duration_times || null, notes: notes || null, day_week: day_week || null, created_at: now, updated_at: now })
+      .returning(["id", "admin_id", "cliente_id", "training_date", "duration_times", "notes", "day_week", "created_at", "updated_at"]);
 
     return res.status(201).json(agendaPoint);
   }
@@ -63,7 +63,7 @@ class AgendaPointController {
 
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { training_date, duration_times, notes } = req.body;
+    const { training_date, duration_times, notes, day_week } = req.body;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) throw new AppError("É necessário enviar o ID do admin", 400);
@@ -75,6 +75,7 @@ class AgendaPointController {
       training_date: training_date || agendaPoint.training_date,
       duration_times: duration_times !== undefined ? duration_times : agendaPoint.duration_times,
       notes: notes !== undefined ? notes : agendaPoint.notes,
+      day_week: day_week !== undefined ? day_week : agendaPoint.day_week,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     }).where({ id, admin_id });
 

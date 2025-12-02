@@ -40,14 +40,29 @@ class ClientePhotosController {
     const { cliente_id } = req.params;
     const file = req.file;
 
+    console.log('=== UPLOAD FOTO CLIENTE ===');
+    console.log('Cliente ID:', cliente_id);
+    console.log('File recebido:', file ? 'SIM' : 'NÃO');
+    console.log('Headers:', req.headers);
+    console.log('Body keys:', Object.keys(req.body));
+
     // Validar se cliente_id é um número válido
     if (!cliente_id || isNaN(Number(cliente_id))) {
+      console.log('Erro: ID do cliente inválido');
       throw new AppError('ID do cliente inválido', 400);
     }
 
     if (!file) {
+      console.log('Erro: Nenhum arquivo foi enviado');
       throw new AppError('Nenhum arquivo foi enviado', 400);
     }
+
+    console.log('Arquivo detalhes:', {
+      filename: file.filename,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
 
     // Verificar se o cliente existe
     const cliente = await knex('clientes').where({ id: cliente_id }).first();
