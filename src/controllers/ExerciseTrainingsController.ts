@@ -24,7 +24,7 @@ class ExerciseTrainingsController {
    * @swagger
    * /exercise-trainings:
    *   post:
-   *     summary: Vincular exercício a treino
+   *     summary: Link exercise to training
    *     tags: [ExerciseTrainings]
    *     parameters:
    *       - in: header
@@ -49,7 +49,7 @@ class ExerciseTrainingsController {
    *                 nullable: true
    *     responses:
    *       201:
-   *         description: Exercício vinculado ao treino com sucesso
+   *         description: Link created
    */
   async create(req: Request, res: Response): Promise<Response> {
     const { training_id, exercise_id, video_url, sets, reps, rest_time, order, notes } = req.body as CreateExerciseTrainingDTO;
@@ -69,7 +69,9 @@ class ExerciseTrainingsController {
     }
 
     const training = await knex("trainings")
-      .where({ id: training_id, admin_id })
+      .leftJoin("trainers", "trainings.trainer_id", "trainers.id")
+      .where({ "trainings.id": training_id })
+      .andWhere("trainers.admin_id", admin_id)
       .first();
     
     if (!training) {
@@ -77,7 +79,11 @@ class ExerciseTrainingsController {
     }
 
     const exercise = await knex("exercises")
-      .where({ id: exercise_id, admin_id })
+      .leftJoin("trainers", "exercises.trainer_id", "trainers.id")
+      .where({ "exercises.id": exercise_id })
+      .andWhere(function() {
+        this.where("trainers.admin_id", admin_id).orWhereNull("exercises.trainer_id");
+      })
       .first();
     
     if (!exercise) {
@@ -130,7 +136,7 @@ class ExerciseTrainingsController {
    * @swagger
    * /exercise-trainings:
    *   get:
-   *     summary: Listar vínculos exercício-treino
+   *     summary: List exercise-training links
    *     tags: [ExerciseTrainings]
    *     parameters:
    *       - in: header
@@ -148,7 +154,7 @@ class ExerciseTrainingsController {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Lista de vínculos
+   *         description: Links list
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;
@@ -174,10 +180,9 @@ class ExerciseTrainingsController {
         "exercise_trainings.updated_at",
         "trainings.name as training_name",
         "exercises.name as exercise_name",
-        "exercises.repetitions",
-        "exercises.series",
-        "exercises.carga",
-        "exercises.notes as exercise_notes"
+        "exercises.muscle_group",
+        "exercises.equipment",
+        "exercises.video_url as exercise_video_url"
       )
       .leftJoin("trainings", "exercise_trainings.training_id", "trainings.id")
       .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
@@ -200,7 +205,7 @@ class ExerciseTrainingsController {
    * @swagger
    * /exercise-trainings/{id}:
    *   get:
-   *     summary: Buscar vínculo por ID
+   *     summary: Get link by ID
    *     tags: [ExerciseTrainings]
    *     parameters:
    *       - in: path
@@ -215,7 +220,7 @@ class ExerciseTrainingsController {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Vínculo encontrado
+   *         description: Link found
    */
   async show(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
@@ -245,10 +250,9 @@ class ExerciseTrainingsController {
         "exercise_trainings.updated_at",
         "trainings.name as training_name",
         "exercises.name as exercise_name",
-        "exercises.repetitions",
-        "exercises.series",
-        "exercises.carga",
-        "exercises.notes as exercise_notes"
+        "exercises.muscle_group",
+        "exercises.equipment",
+        "exercises.video_url as exercise_video_url"
       )
       .leftJoin("trainings", "exercise_trainings.training_id", "trainings.id")
       .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
@@ -266,7 +270,7 @@ class ExerciseTrainingsController {
    * @swagger
    * /exercise-trainings/{id}:
    *   delete:
-   *     summary: Remover exercício do treino
+   *     summary: Remove exercise from training
    *     tags: [ExerciseTrainings]
    *     parameters:
    *       - in: path
@@ -281,7 +285,7 @@ class ExerciseTrainingsController {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Exercício removido do treino
+   *         description: Link removed
    */
   async delete(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
@@ -306,7 +310,7 @@ class ExerciseTrainingsController {
    * @swagger
    * /exercise-trainings/training/{training_id}:
    *   get:
-   *     summary: Buscar exercícios de um treino
+   *     summary: Get exercises from a training
    *     tags: [ExerciseTrainings]
    *     parameters:
    *       - in: path
@@ -321,7 +325,7 @@ class ExerciseTrainingsController {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Lista de exercícios do treino
+   *         description: Training exercises list
    */
   async getByTraining(req: Request, res: Response): Promise<Response> {
     const { training_id } = req.params;
@@ -350,10 +354,9 @@ class ExerciseTrainingsController {
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "exercises.name as exercise_name",
-        "exercises.repetitions",
-        "exercises.series",
-        "exercises.carga",
-        "exercises.notes as exercise_notes"
+        "exercises.muscle_group",
+        "exercises.equipment",
+        "exercises.video_url as exercise_video_url"
       )
       .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
       .where({ "exercise_trainings.training_id": training_id, "exercise_trainings.admin_id": admin_id })

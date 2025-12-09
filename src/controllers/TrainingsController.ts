@@ -7,19 +7,19 @@ interface CreateTrainingDTO {
   name: string;
   notes?: string;
   day_of_week?: string;
-  treinador_id: number;
+  trainer_id: number;
 }
 
 interface UpdateTrainingDTO {
   name?: string;
   notes?: string;
   day_of_week?: string;
-  treinador_id?: number;
+  trainer_id?: number;
 }
 
 interface TrainingQueryParams {
   term?: string;
-  treinador_id?: string;
+  trainer_id?: string;
 }
 
 class TrainingsController {
@@ -27,7 +27,7 @@ class TrainingsController {
    * @swagger
    * /trainings:
    *   post:
-   *     summary: Criar novo treino
+   *     summary: Create training
    *     tags: [Trainings]
    *     requestBody:
    *       required: true
@@ -35,7 +35,7 @@ class TrainingsController {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [name, treinador_id]
+   *             required: [name, trainer_id]
    *             properties:
    *               name:
    *                 type: string
@@ -45,26 +45,26 @@ class TrainingsController {
    *               day_of_week:
    *                 type: string
    *                 nullable: true
-   *               treinador_id:
+   *               trainer_id:
    *                 type: integer
    *     responses:
    *       201:
    *         description: Treino criado com sucesso
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, notes, day_of_week, treinador_id } = req.body as CreateTrainingDTO;
+    const { name, notes, day_of_week, trainer_id } = req.body as CreateTrainingDTO;
     const admin_id = req.headers.admin_id as string || '1';
 
     if (!name) {
       throw new AppError("Nome do treino é obrigatório", 400);
     }
 
-    if (!treinador_id) {
+    if (!trainer_id) {
       throw new AppError("ID do treinador é obrigatório", 400);
     }
 
-    const treinador = await knex("treinadores")
-      .where({ id: treinador_id })
+    const treinador = await knex("trainers")
+      .where({ id: trainer_id, admin_id })
       .first();
     
     if (!treinador) {
@@ -75,8 +75,7 @@ class TrainingsController {
 
     const [training] = await knex("trainings")
       .insert({
-        admin_id,
-        treinador_id,
+        trainer_id,
         name,
         day_of_week: day_of_week || null,
         notes: notes || null,
@@ -85,8 +84,7 @@ class TrainingsController {
       })
       .returning([
         "id",
-        "admin_id",
-        "treinador_id",
+        "trainer_id",
         "name",
         "day_of_week",
         "notes",
@@ -101,7 +99,7 @@ class TrainingsController {
    * @swagger
    * /trainings:
    *   get:
-   *     summary: Listar todos os treinos
+   *     summary: List trainings
    *     tags: [Trainings]
    *     parameters:
    *       - in: query
@@ -109,7 +107,7 @@ class TrainingsController {
    *         schema:
    *           type: string
    *       - in: query
-   *         name: treinador_id
+   *         name: trainer_id
    *         schema:
    *           type: integer
    *     responses:
@@ -118,27 +116,25 @@ class TrainingsController {
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string || '1';
-    const { term, treinador_id } = req.query as TrainingQueryParams;
-
-    if (!treinador_id) {
-      throw new AppError("É necessário enviar o ID do treinador", 400);
-    }
+    const { term, trainer_id } = req.query as TrainingQueryParams;
 
     let trainingsQuery = knex("trainings")
       .select(
         "trainings.id",
-        "trainings.admin_id",
-        "trainings.treinador_id",
+        "trainings.trainer_id",
         "trainings.name",
         "trainings.day_of_week",
         "trainings.notes",
         "trainings.created_at",
         "trainings.updated_at",
-        "treinadores.name as treinador_name"
+        "trainers.name as trainer_name"
       )
-      .leftJoin("treinadores", "trainings.treinador_id", "treinadores.id")
-      .where("trainings.admin_id", admin_id)
-      .where("trainings.treinador_id", treinador_id);
+      .leftJoin("trainers", "trainings.trainer_id", "trainers.id")
+      .where("trainers.admin_id", admin_id);
+
+    if (trainer_id) {
+      trainingsQuery = trainingsQuery.where("trainings.trainer_id", trainer_id);
+    }
 
     if (term) {
       trainingsQuery = trainingsQuery.where(function() {
@@ -156,7 +152,7 @@ class TrainingsController {
    * @swagger
    * /trainings/{id}:
    *   get:
-   *     summary: Buscar treino por ID
+   *     summary: Get training by ID
    *     tags: [Trainings]
    *     parameters:
    *       - in: path
@@ -179,17 +175,17 @@ class TrainingsController {
     const training = await knex("trainings")
       .select(
         "trainings.id",
-        "trainings.admin_id",
-        "trainings.treinador_id",
+        "trainings.trainer_id",
         "trainings.name",
         "trainings.day_of_week",
         "trainings.notes",
         "trainings.created_at",
         "trainings.updated_at",
-        "treinadores.name as treinador_name"
+        "trainers.name as trainer_name"
       )
-      .leftJoin("treinadores", "trainings.treinador_id", "treinadores.id")
-      .where({ "trainings.id": id, "trainings.admin_id": admin_id })
+      .leftJoin("trainers", "trainings.trainer_id", "trainers.id")
+      .where({ "trainings.id": id })
+      .andWhere("trainers.admin_id", admin_id)
       .first();
     
     if (!training) {
@@ -203,7 +199,7 @@ class TrainingsController {
    * @swagger
    * /trainings/{id}:
    *   put:
-   *     summary: Atualizar treino
+   *     summary: Update training
    *     tags: [Trainings]
    *     parameters:
    *       - in: path
@@ -223,7 +219,7 @@ class TrainingsController {
    *                 type: string
    *               day_of_week:
    *                 type: string
-   *               treinador_id:
+   *               trainer_id:
    *                 type: integer
    *     responses:
    *       200:
@@ -231,18 +227,18 @@ class TrainingsController {
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { name, notes, day_of_week, treinador_id } = req.body as UpdateTrainingDTO;
+    const { name, notes, day_of_week, trainer_id } = req.body as UpdateTrainingDTO;
     const admin_id = req.headers.admin_id as string || '1';
 
-    const training = await knex("trainings").where({ id, admin_id }).first();
+    const training = await knex("trainings").where({ id }).first();
 
     if (!training) {
       throw new AppError("Treino não encontrado", 404);
     }
 
-    if (treinador_id) {
-      const treinador = await knex("treinadores")
-        .where({ id: treinador_id })
+    if (trainer_id) {
+      const treinador = await knex("trainers")
+        .where({ id: trainer_id, admin_id })
         .first();
       
       if (!treinador) {
@@ -254,26 +250,26 @@ class TrainingsController {
       name: name || training.name,
       day_of_week: day_of_week !== undefined ? day_of_week : training.day_of_week,
       notes: notes !== undefined ? notes : training.notes,
-      treinador_id: treinador_id !== undefined ? treinador_id : training.treinador_id,
+      trainer_id: trainer_id !== undefined ? trainer_id : training.trainer_id,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     };
 
-    await knex("trainings").update(updatedData).where({ id, admin_id });
+    await knex("trainings").update(updatedData).where({ id });
 
     const updatedTraining = await knex("trainings")
       .select(
         "trainings.id",
-        "trainings.admin_id",
-        "trainings.treinador_id",
+        "trainings.trainer_id",
         "trainings.name",
         "trainings.day_of_week",
         "trainings.notes",
         "trainings.created_at",
         "trainings.updated_at",
-        "treinadores.name as treinador_name"
+        "trainers.name as trainer_name"
       )
-      .leftJoin("treinadores", "trainings.treinador_id", "treinadores.id")
-      .where({ "trainings.id": id, "trainings.admin_id": admin_id })
+      .leftJoin("trainers", "trainings.trainer_id", "trainers.id")
+      .where({ "trainings.id": id })
+      .andWhere("trainers.admin_id", admin_id)
       .first();
 
     return res.status(200).json({
@@ -286,7 +282,7 @@ class TrainingsController {
    * @swagger
    * /trainings/{id}:
    *   delete:
-   *     summary: Excluir treino
+   *     summary: Delete training
    *     tags: [Trainings]
    *     parameters:
    *       - in: path
@@ -306,13 +302,17 @@ class TrainingsController {
       throw new AppError("É necessário enviar o ID do treino", 400);
     }
 
-    const training = await knex("trainings").where({ id, admin_id }).first();
+    const training = await knex("trainings")
+      .leftJoin("trainers", "trainings.trainer_id", "trainers.id")
+      .where({ "trainings.id": id })
+      .andWhere("trainers.admin_id", admin_id)
+      .first();
     
     if (!training) {
       throw new AppError("Treino não encontrado", 404);
     }
     
-    await knex("trainings").where({ id, admin_id }).delete();
+    await knex("trainings").where({ id }).delete();
     
     return res.json({ message: "Treino excluído com sucesso" });
   }

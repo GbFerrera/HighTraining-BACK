@@ -6,10 +6,10 @@ import AppError from '../utils/AppError';
 class ClienteEstatisticController {
   /**
    * @swagger
-   * /cliente-estatistic:
+   * /student-statistics:
    *   post:
-   *     summary: Criar nova estatística de cliente
-   *     tags: [Cliente Estatísticas]
+   *     summary: Create student statistics
+   *     tags: [Student Statistics]
    *     parameters:
    *       - in: header
    *         name: admin_id
@@ -22,7 +22,50 @@ class ClienteEstatisticController {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/CreateClienteEstatisticDTO'
+   *             type: object
+   *             required: [student_id]
+   *             properties:
+   *               student_id:
+   *                 type: integer
+   *               weight:
+   *                 type: number
+   *                 format: float
+   *               height:
+   *                 type: number
+   *                 format: float
+   *               muscle_mass_percentage:
+   *                 type: number
+   *                 format: float
+   *               notes:
+   *                 type: string
+   *               shoulder:
+   *                 type: number
+   *               chest:
+   *                 type: number
+   *               left_arm:
+   *                 type: number
+   *               right_arm:
+   *                 type: number
+   *               left_forearm:
+   *                 type: number
+   *               right_forearm:
+   *                 type: number
+   *               wrist:
+   *                 type: number
+   *               waist:
+   *                 type: number
+   *               abdomen:
+   *                 type: number
+   *               hip:
+   *                 type: number
+   *               left_thigh:
+   *                 type: number
+   *               right_thigh:
+   *                 type: number
+   *               left_calf:
+   *                 type: number
+   *               right_calf:
+   *                 type: number
    *     responses:
    *       201:
    *         description: Estatística criada com sucesso
@@ -73,47 +116,51 @@ class ClienteEstatisticController {
     const admin = await knex("admins").where({ id: admin_id }).first();
     if (!admin) throw new AppError("Admin não encontrado", 404);
 
-    const cliente = await knex("clientes").where({ id: cliente_id, admin_id }).first();
+    const cliente = await knex("students")
+      .leftJoin("trainers", "students.trainer_id", "trainers.id")
+      .where({ "students.id": cliente_id })
+      .andWhere("trainers.admin_id", admin_id)
+      .first();
     if (!cliente) throw new AppError("Cliente não encontrado", 404);
 
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
 
-    const [estatistic] = await knex("cliente_estatistic")
+    const [estatistic] = await knex("student_statistics")
       .insert({ 
         admin_id, 
-        cliente_id, 
+        student_id: cliente_id, 
         weight: weight || null, 
         height: height || null, 
         muscle_mass_percentage: muscle_mass_percentage || null, 
         notes: notes || null,
-        ombro: ombro || null,
-        torax: torax || null,
-        braco_esquerdo: braco_esquerdo || null,
-        braco_direito: braco_direito || null,
-        antebraco_esquerdo: antebraco_esquerdo || null,
-        antebraco_direito: antebraco_direito || null,
-        punho: punho || null,
-        cintura: cintura || null,
-        abdome: abdome || null,
-        quadril: quadril || null,
-        coxa_esquerda: coxa_esquerda || null,
-        coxa_direita: coxa_direita || null,
-        panturrilha_esquerda: panturrilha_esquerda || null,
-        panturrilha_direita: panturrilha_direita || null,
+        shoulder: ombro || null,
+        chest: torax || null,
+        left_arm: braco_esquerdo || null,
+        right_arm: braco_direito || null,
+        left_forearm: antebraco_esquerdo || null,
+        right_forearm: antebraco_direito || null,
+        wrist: punho || null,
+        waist: cintura || null,
+        abdomen: abdome || null,
+        hip: quadril || null,
+        left_thigh: coxa_esquerda || null,
+        right_thigh: coxa_direita || null,
+        left_calf: panturrilha_esquerda || null,
+        right_calf: panturrilha_direita || null,
         created_at: now, 
         updated_at: now 
       })
-      .returning(["*"]);
+      .returning(["*"]); 
 
     return res.status(201).json(estatistic);
   }
 
   /**
    * @swagger
-   * /cliente-estatistic:
+   * /student-statistics:
    *   get:
-   *     summary: Listar estatísticas de clientes
-   *     tags: [Cliente Estatísticas]
+   *     summary: List student statistics
+   *     tags: [Student Statistics]
    *     parameters:
    *       - in: header
    *         name: admin_id
@@ -122,13 +169,13 @@ class ClienteEstatisticController {
    *           type: string
    *         description: ID do administrador
    *       - in: query
-   *         name: cliente_id
+   *         name: student_id
    *         schema:
    *           type: number
-   *         description: Filtrar por ID do cliente
+   *         description: Filter by student ID
    *     responses:
    *       200:
-   *         description: Lista de estatísticas
+   *         description: Statistics list
    *         content:
    *           application/json:
    *             schema:
@@ -144,27 +191,27 @@ class ClienteEstatisticController {
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;
-    const { cliente_id } = req.query;
+    const { student_id } = req.query as any;
 
     if (!admin_id) throw new AppError("É necessário enviar o ID do admin", 400);
 
-    let query = knex("cliente_estatistic")
-      .select("cliente_estatistic.*", "clientes.name as cliente_name")
-      .leftJoin("clientes", "cliente_estatistic.cliente_id", "clientes.id")
-      .where("cliente_estatistic.admin_id", admin_id);
+    let query = knex("student_statistics")
+      .select("student_statistics.*", "students.name as student_name")
+      .leftJoin("students", "student_statistics.student_id", "students.id")
+      .where("student_statistics.admin_id", admin_id);
 
-    if (cliente_id) query = query.where("cliente_estatistic.cliente_id", cliente_id);
+    if (student_id) query = query.where("student_statistics.student_id", student_id);
 
-    const estatistics = await query.orderBy("cliente_estatistic.created_at", "desc");
+    const estatistics = await query.orderBy("student_statistics.created_at", "desc");
     return res.json(estatistics);
   }
 
   /**
    * @swagger
-   * /cliente-estatistic/{id}:
+   * /student-statistics/{id}:
    *   get:
-   *     summary: Buscar estatística por ID
-   *     tags: [Cliente Estatísticas]
+   *     summary: Get statistic by ID
+   *     tags: [Student Statistics]
    *     parameters:
    *       - in: path
    *         name: id
@@ -204,10 +251,10 @@ class ClienteEstatisticController {
 
     if (!id || !admin_id) throw new AppError("É necessário enviar os IDs", 400);
 
-    const estatistic = await knex("cliente_estatistic")
-      .select("cliente_estatistic.*", "clientes.name as cliente_name")
-      .leftJoin("clientes", "cliente_estatistic.cliente_id", "clientes.id")
-      .where({ "cliente_estatistic.id": id, "cliente_estatistic.admin_id": admin_id })
+    const estatistic = await knex("student_statistics")
+      .select("student_statistics.*", "students.name as student_name")
+      .leftJoin("students", "student_statistics.student_id", "students.id")
+      .where({ "student_statistics.id": id, "student_statistics.admin_id": admin_id })
       .first();
     
     if (!estatistic) throw new AppError("Estatística não encontrada", 404);
@@ -216,10 +263,10 @@ class ClienteEstatisticController {
 
   /**
    * @swagger
-   * /cliente-estatistic/{id}:
+   * /student-statistics/{id}:
    *   put:
-   *     summary: Atualizar estatística de cliente
-   *     tags: [Cliente Estatísticas]
+   *     summary: Update student statistics
+   *     tags: [Student Statistics]
    *     parameters:
    *       - in: path
    *         name: id
@@ -291,35 +338,35 @@ class ClienteEstatisticController {
 
     if (!admin_id) throw new AppError("É necessário enviar o ID do admin", 400);
 
-    const estatistic = await knex("cliente_estatistic").where({ id, admin_id }).first();
+    const estatistic = await knex("student_statistics").where({ id, admin_id }).first();
     if (!estatistic) throw new AppError("Estatística não encontrada", 404);
 
-    await knex("cliente_estatistic").update({
+    await knex("student_statistics").update({
       weight: weight !== undefined ? weight : estatistic.weight,
       height: height !== undefined ? height : estatistic.height,
       muscle_mass_percentage: muscle_mass_percentage !== undefined ? muscle_mass_percentage : estatistic.muscle_mass_percentage,
       notes: notes !== undefined ? notes : estatistic.notes,
-      ombro: ombro !== undefined ? ombro : estatistic.ombro,
-      torax: torax !== undefined ? torax : estatistic.torax,
-      braco_esquerdo: braco_esquerdo !== undefined ? braco_esquerdo : estatistic.braco_esquerdo,
-      braco_direito: braco_direito !== undefined ? braco_direito : estatistic.braco_direito,
-      antebraco_esquerdo: antebraco_esquerdo !== undefined ? antebraco_esquerdo : estatistic.antebraco_esquerdo,
-      antebraco_direito: antebraco_direito !== undefined ? antebraco_direito : estatistic.antebraco_direito,
-      punho: punho !== undefined ? punho : estatistic.punho,
-      cintura: cintura !== undefined ? cintura : estatistic.cintura,
-      abdome: abdome !== undefined ? abdome : estatistic.abdome,
-      quadril: quadril !== undefined ? quadril : estatistic.quadril,
-      coxa_esquerda: coxa_esquerda !== undefined ? coxa_esquerda : estatistic.coxa_esquerda,
-      coxa_direita: coxa_direita !== undefined ? coxa_direita : estatistic.coxa_direita,
-      panturrilha_esquerda: panturrilha_esquerda !== undefined ? panturrilha_esquerda : estatistic.panturrilha_esquerda,
-      panturrilha_direita: panturrilha_direita !== undefined ? panturrilha_direita : estatistic.panturrilha_direita,
+      shoulder: ombro !== undefined ? ombro : estatistic.shoulder,
+      chest: torax !== undefined ? torax : estatistic.chest,
+      left_arm: braco_esquerdo !== undefined ? braco_esquerdo : estatistic.left_arm,
+      right_arm: braco_direito !== undefined ? braco_direito : estatistic.right_arm,
+      left_forearm: antebraco_esquerdo !== undefined ? antebraco_esquerdo : estatistic.left_forearm,
+      right_forearm: antebraco_direito !== undefined ? antebraco_direito : estatistic.right_forearm,
+      wrist: punho !== undefined ? punho : estatistic.wrist,
+      waist: cintura !== undefined ? cintura : estatistic.waist,
+      abdomen: abdome !== undefined ? abdome : estatistic.abdomen,
+      hip: quadril !== undefined ? quadril : estatistic.hip,
+      left_thigh: coxa_esquerda !== undefined ? coxa_esquerda : estatistic.left_thigh,
+      right_thigh: coxa_direita !== undefined ? coxa_direita : estatistic.right_thigh,
+      left_calf: panturrilha_esquerda !== undefined ? panturrilha_esquerda : estatistic.left_calf,
+      right_calf: panturrilha_direita !== undefined ? panturrilha_direita : estatistic.right_calf,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     }).where({ id, admin_id });
 
-    const updated = await knex("cliente_estatistic")
-      .select("cliente_estatistic.*", "clientes.name as cliente_name")
-      .leftJoin("clientes", "cliente_estatistic.cliente_id", "clientes.id")
-      .where({ "cliente_estatistic.id": id, "cliente_estatistic.admin_id": admin_id })
+    const updated = await knex("student_statistics")
+      .select("student_statistics.*", "students.name as student_name")
+      .leftJoin("students", "student_statistics.student_id", "students.id")
+      .where({ "student_statistics.id": id, "student_statistics.admin_id": admin_id })
       .first();
 
     return res.status(200).json({ message: "Estatística atualizada com sucesso", estatistic: updated });
@@ -327,10 +374,10 @@ class ClienteEstatisticController {
 
   /**
    * @swagger
-   * /cliente-estatistic/{id}:
+   * /student-statistics/{id}:
    *   delete:
-   *     summary: Excluir estatística de cliente
-   *     tags: [Cliente Estatísticas]
+   *     summary: Delete student statistics
+   *     tags: [Student Statistics]
    *     parameters:
    *       - in: path
    *         name: id
@@ -374,19 +421,19 @@ class ClienteEstatisticController {
 
     if (!admin_id || !id) throw new AppError("É necessário enviar os IDs", 400);
 
-    const estatistic = await knex("cliente_estatistic").where({ id, admin_id }).first();
+    const estatistic = await knex("student_statistics").where({ id, admin_id }).first();
     if (!estatistic) throw new AppError("Estatística não encontrada", 404);
     
-    await knex("cliente_estatistic").where({ id, admin_id }).delete();
+    await knex("student_statistics").where({ id, admin_id }).delete();
     return res.json({ message: "Estatística excluída com sucesso" });
   }
 
   /**
    * @swagger
-   * /cliente-estatistic/latest/{cliente_id}:
+   * /student-statistics/latest/{student_id}:
    *   get:
-   *     summary: Buscar última estatística de um cliente
-   *     tags: [Cliente Estatísticas]
+   *     summary: Get student's latest statistics
+   *     tags: [Student Statistics]
    *     parameters:
    *       - in: path
    *         name: cliente_id
@@ -421,16 +468,16 @@ class ClienteEstatisticController {
    *               $ref: '#/components/schemas/Error'
    */
   async getLatest(req: Request, res: Response): Promise<Response> {
-    const { cliente_id } = req.params;
+    const { student_id } = req.params as any;
     const admin_id = req.headers.admin_id as string;
 
-    if (!admin_id || !cliente_id) throw new AppError("É necessário enviar os IDs", 400);
+    if (!admin_id || !student_id) throw new AppError("É necessário enviar os IDs", 400);
 
-    const estatistic = await knex("cliente_estatistic")
-      .select("cliente_estatistic.*", "clientes.name as cliente_name")
-      .leftJoin("clientes", "cliente_estatistic.cliente_id", "clientes.id")
-      .where({ "cliente_estatistic.cliente_id": cliente_id, "cliente_estatistic.admin_id": admin_id })
-      .orderBy("cliente_estatistic.created_at", "desc")
+    const estatistic = await knex("student_statistics")
+      .select("student_statistics.*", "students.name as student_name")
+      .leftJoin("students", "student_statistics.student_id", "students.id")
+      .where({ "student_statistics.student_id": student_id, "student_statistics.admin_id": admin_id })
+      .orderBy("student_statistics.created_at", "desc")
       .first();
     
     if (!estatistic) throw new AppError("Nenhuma estatística encontrada para este cliente", 404);
@@ -439,11 +486,11 @@ class ClienteEstatisticController {
 
   /**
    * @swagger
-   * /cliente-estatistic/medidas/{cliente_id}:
+   * /student-statistics/measures/{student_id}:
    *   get:
-   *     summary: Buscar medidas corporais de um cliente
-   *     tags: [Cliente Estatísticas]
-   *     description: Retorna todas as medidas corporais de um cliente organizadas por data
+   *     summary: Get student's body measurements
+   *     tags: [Student Statistics]
+   *     description: Returns all body measures organized by date
    *     parameters:
    *       - in: path
    *         name: cliente_id
@@ -472,58 +519,58 @@ class ClienteEstatisticController {
    *               $ref: '#/components/schemas/Error'
    */
   async getMedidas(req: Request, res: Response): Promise<Response> {
-    const { cliente_id } = req.params;
+    const { student_id } = req.params as any;
     const admin_id = req.headers.admin_id as string;
 
-    if (!admin_id || !cliente_id) throw new AppError("É necessário enviar os IDs", 400);
+    if (!admin_id || !student_id) throw new AppError("É necessário enviar os IDs", 400);
 
-    const estatistics = await knex("cliente_estatistic")
+    const estatistics = await knex("student_statistics")
       .select(
         "id",
-        "ombro",
-        "torax",
-        "braco_esquerdo",
-        "braco_direito",
-        "antebraco_esquerdo",
-        "antebraco_direito",
-        "punho",
-        "cintura",
-        "abdome",
-        "quadril",
-        "coxa_esquerda",
-        "coxa_direita",
-        "panturrilha_esquerda",
-        "panturrilha_direita",
+        "shoulder",
+        "chest",
+        "left_arm",
+        "right_arm",
+        "left_forearm",
+        "right_forearm",
+        "wrist",
+        "waist",
+        "abdomen",
+        "hip",
+        "left_thigh",
+        "right_thigh",
+        "left_calf",
+        "right_calf",
         "created_at"
       )
-      .where({ cliente_id, admin_id })
+      .where({ student_id, admin_id })
       .orderBy("created_at", "desc");
     
     const medidas = estatistics.map(stat => ({
       id: stat.id,
       data: stat.created_at,
       medidas: {
-        ombro: stat.ombro,
-        torax: stat.torax,
-        bracos: {
-          esquerdo: stat.braco_esquerdo,
-          direito: stat.braco_direito
+        shoulder: stat.shoulder,
+        chest: stat.chest,
+        arms: {
+          left: stat.left_arm,
+          right: stat.right_arm
         },
-        antebracos: {
-          esquerdo: stat.antebraco_esquerdo,
-          direito: stat.antebraco_direito
+        forearms: {
+          left: stat.left_forearm,
+          right: stat.right_forearm
         },
-        punho: stat.punho,
-        cintura: stat.cintura,
-        abdome: stat.abdome,
-        quadril: stat.quadril,
-        coxas: {
-          esquerda: stat.coxa_esquerda,
-          direita: stat.coxa_direita
+        wrist: stat.wrist,
+        waist: stat.waist,
+        abdomen: stat.abdomen,
+        hip: stat.hip,
+        thighs: {
+          left: stat.left_thigh,
+          right: stat.right_thigh
         },
-        panturrilhas: {
-          esquerda: stat.panturrilha_esquerda,
-          direita: stat.panturrilha_direita
+        calves: {
+          left: stat.left_calf,
+          right: stat.right_calf
         }
       }
     }));

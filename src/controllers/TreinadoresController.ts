@@ -29,10 +29,10 @@ interface TreinadorQueryParams {
 class TreinadoresController {
   /**
    * @swagger
-   * /treinadores:
+   * /trainers:
    *   post:
-   *     summary: Criar novo treinador
-   *     tags: [Treinadores]
+   *     summary: Create trainer
+   *     tags: [Trainers]
    *     parameters:
    *       - in: header
    *         name: admin_id
@@ -62,7 +62,7 @@ class TreinadoresController {
    *                 nullable: true
    *     responses:
    *       201:
-   *         description: Treinador criado com sucesso
+   *         description: Trainer created
    */
   async create(req: Request, res: Response): Promise<Response> {
     const { name, email, password, document, phone_number, position } = req.body as CreateTreinadorDTO;
@@ -81,7 +81,7 @@ class TreinadoresController {
       throw new AppError("Admin não encontrado", 404);
     }
 
-    const emailUsed = await knex("treinadores")
+    const emailUsed = await knex("trainers")
       .where({ email, admin_id })
       .first();
 
@@ -89,7 +89,7 @@ class TreinadoresController {
       throw new AppError("Este e-mail já está cadastrado", 400);
     }
 
-    const documentUsed = await knex("treinadores")
+    const documentUsed = await knex("trainers")
       .where({ document, admin_id })
       .first();
 
@@ -100,7 +100,7 @@ class TreinadoresController {
     const hashedPassword = await bcrypt.hash(password, 8);
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
 
-    const [treinador] = await knex("treinadores")
+    const [treinador] = await knex("trainers")
       .insert({
         admin_id,
         name,
@@ -129,10 +129,10 @@ class TreinadoresController {
 
   /**
    * @swagger
-   * /treinadores:
+   * /trainers:
    *   get:
-   *     summary: Listar todos os treinadores
-   *     tags: [Treinadores]
+   *     summary: List trainers
+   *     tags: [Trainers]
    *     parameters:
    *       - in: header
    *         name: admin_id
@@ -145,7 +145,7 @@ class TreinadoresController {
    *           type: string
    *     responses:
    *       200:
-   *         description: Lista de treinadores
+   *         description: Trainer list
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;
@@ -155,7 +155,7 @@ class TreinadoresController {
       throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
-    let treinadoresQuery = knex("treinadores")
+    let treinadoresQuery = knex("trainers")
       .select(
         "id",
         "admin_id",
@@ -184,10 +184,10 @@ class TreinadoresController {
 
   /**
    * @swagger
-   * /treinadores/{id}:
+   * /trainers/{id}:
    *   get:
-   *     summary: Buscar treinador por ID
-   *     tags: [Treinadores]
+   *     summary: Get trainer by ID
+   *     tags: [Trainers]
    *     parameters:
    *       - in: path
    *         name: id
@@ -201,7 +201,7 @@ class TreinadoresController {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Treinador encontrado
+   *         description: Trainer found
    */
   async show(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
@@ -215,7 +215,7 @@ class TreinadoresController {
       throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
-    const treinador = await knex("treinadores")
+    const treinador = await knex("trainers")
       .select(
         "id",
         "admin_id",
@@ -239,10 +239,10 @@ class TreinadoresController {
 
   /**
    * @swagger
-   * /treinadores/{id}:
+   * /trainers/{id}:
    *   put:
-   *     summary: Atualizar treinador
-   *     tags: [Treinadores]
+   *     summary: Update trainer
+   *     tags: [Trainers]
    *     parameters:
    *       - in: path
    *         name: id
@@ -274,7 +274,7 @@ class TreinadoresController {
    *                 type: string
    *     responses:
    *       200:
-   *         description: Treinador atualizado com sucesso
+   *         description: Trainer updated
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
@@ -285,14 +285,14 @@ class TreinadoresController {
       throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
-    const treinador = await knex("treinadores").where({ id, admin_id }).first();
+    const treinador = await knex("trainers").where({ id, admin_id }).first();
 
     if (!treinador) {
       throw new AppError("Treinador não encontrado", 404);
     }
 
     if (email && email !== treinador.email) {
-      const existingTreinadorWithEmail = await knex("treinadores")
+      const existingTreinadorWithEmail = await knex("trainers")
         .where({ email, admin_id })
         .andWhereNot({ id })
         .first();
@@ -303,7 +303,7 @@ class TreinadoresController {
     }
 
     if (document && document !== treinador.document) {
-      const existingTreinadorWithDocument = await knex("treinadores")
+      const existingTreinadorWithDocument = await knex("trainers")
         .where({ document, admin_id })
         .andWhereNot({ id })
         .first();
@@ -326,9 +326,9 @@ class TreinadoresController {
       updatedData.password = await bcrypt.hash(password, 8);
     }
 
-    await knex("treinadores").update(updatedData).where({ id, admin_id });
+    await knex("trainers").update(updatedData).where({ id, admin_id });
 
-    const updatedTreinador = await knex("treinadores")
+    const updatedTreinador = await knex("trainers")
       .select(
         "id",
         "admin_id",
@@ -351,10 +351,10 @@ class TreinadoresController {
 
   /**
    * @swagger
-   * /treinadores/{id}:
+   * /trainers/{id}:
    *   delete:
-   *     summary: Excluir treinador
-   *     tags: [Treinadores]
+   *     summary: Delete trainer
+   *     tags: [Trainers]
    *     parameters:
    *       - in: path
    *         name: id
@@ -368,7 +368,7 @@ class TreinadoresController {
    *           type: integer
    *     responses:
    *       200:
-   *         description: Treinador excluído com sucesso
+   *         description: Trainer deleted
    */
   async delete(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
@@ -378,13 +378,13 @@ class TreinadoresController {
       throw new AppError("É necessário enviar o ID do admin e do treinador", 400);
     }
 
-    const treinador = await knex("treinadores").where({ id, admin_id }).first();
+    const treinador = await knex("trainers").where({ id, admin_id }).first();
     
     if (!treinador) {
       throw new AppError("Treinador não encontrado", 404);
     }
     
-    await knex("treinadores").where({ id, admin_id }).delete();
+    await knex("trainers").where({ id, admin_id }).delete();
     
     return res.json({ message: "Treinador excluído com sucesso" });
   }

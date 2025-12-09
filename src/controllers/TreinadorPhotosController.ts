@@ -7,17 +7,17 @@ import fs from 'fs';
 class TreinadorPhotosController {
   /**
    * @swagger
-   * /treinadores/{treinador_id}/photo:
+   * /trainers/{trainer_id}/photo:
    *   post:
-   *     summary: Upload de foto de perfil do treinador
-   *     tags: [Treinador Photos]
+   *     summary: Upload trainer profile photo
+   *     tags: [Trainer Photos]
    *     parameters:
    *       - in: path
-   *         name: treinador_id
+   *         name: trainer_id
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID do treinador
+   *         description: Trainer ID
    *     requestBody:
    *       required: true
    *       content:
@@ -30,7 +30,7 @@ class TreinadorPhotosController {
    *                 format: binary
    *     responses:
    *       201:
-   *         description: Foto enviada com sucesso
+   *         description: Photo uploaded
    *         content:
    *           application/json:
    *             schema:
@@ -49,17 +49,17 @@ class TreinadorPhotosController {
    *               $ref: '#/components/schemas/Error'
    */
   async upload(req: Request, res: Response): Promise<Response> {
-    const { treinador_id } = req.params;
+    const { trainer_id } = req.params as any;
     const file = req.file;
 
     console.log('=== UPLOAD FOTO TREINADOR ===');
-    console.log('Treinador ID:', treinador_id);
+    console.log('Trainer ID:', trainer_id);
     console.log('File recebido:', file ? 'SIM' : 'NÃO');
     console.log('Headers:', req.headers);
     console.log('Body keys:', Object.keys(req.body));
 
     // Validar se treinador_id é um número válido
-    if (!treinador_id || isNaN(Number(treinador_id))) {
+    if (!trainer_id || isNaN(Number(trainer_id))) {
       console.log('Erro: ID do treinador inválido');
       throw new AppError('ID do treinador inválido', 400);
     }
@@ -77,7 +77,7 @@ class TreinadorPhotosController {
     });
 
     // Verificar se o treinador existe
-    const treinador = await knex('treinadores').where({ id: treinador_id }).first();
+    const treinador = await knex('trainers').where({ id: trainer_id }).first();
 
     if (!treinador) {
       // Deletar o arquivo que foi salvo
@@ -86,23 +86,23 @@ class TreinadorPhotosController {
     }
 
     // Verificar se já existe uma foto de perfil para este treinador
-    const existingPhoto = await knex('treinador_photos')
-      .where({ treinador_id, is_profile: true })
+    const existingPhoto = await knex('trainer_photos')
+      .where({ trainer_id, is_profile: true })
       .first();
 
     // Se existir, deletar a foto antiga do sistema de arquivos
     if (existingPhoto) {
-      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'treinador-photos', existingPhoto.filename);
+      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-photos', existingPhoto.filename);
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
       }
       // Deletar registro antigo do banco
-      await knex('treinador_photos').where({ id: existingPhoto.id }).delete();
+      await knex('trainer_photos').where({ id: existingPhoto.id }).delete();
     }
 
     // Salvar informações da foto no banco de dados
-    const insertResult = await knex('treinador_photos').insert({
-      treinador_id,
+    const insertResult = await knex('trainer_photos').insert({
+      trainer_id,
       filename: file.filename,
       filepath: file.path,
       mimetype: file.mimetype,
@@ -119,20 +119,20 @@ class TreinadorPhotosController {
 
   /**
    * @swagger
-   * /treinadores/{treinador_id}/photo:
+   * /trainers/{trainer_id}/photo:
    *   get:
-   *     summary: Obter foto de perfil do treinador
-   *     tags: [Treinador Photos]
+   *     summary: Get trainer profile photo
+   *     tags: [Trainer Photos]
    *     parameters:
    *       - in: path
-   *         name: treinador_id
+   *         name: trainer_id
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID do treinador
+   *         description: Trainer ID
    *     responses:
    *       200:
-   *         description: Foto encontrada
+   *         description: Photo found
    *         content:
    *           application/json:
    *             schema:
@@ -145,10 +145,10 @@ class TreinadorPhotosController {
    *               $ref: '#/components/schemas/Error'
    */
   async show(req: Request, res: Response): Promise<Response> {
-    const { treinador_id } = req.params;
+    const { trainer_id } = req.params as any;
 
-    const photo = await knex('treinador_photos')
-      .where({ treinador_id, is_profile: true })
+    const photo = await knex('trainer_photos')
+      .where({ trainer_id, is_profile: true })
       .first();
 
     if (!photo) {
@@ -160,20 +160,20 @@ class TreinadorPhotosController {
 
   /**
    * @swagger
-   * /treinadores/{treinador_id}/photo/file:
+   * /trainers/{trainer_id}/photo/file:
    *   get:
-   *     summary: Baixar arquivo de foto de perfil do treinador
-   *     tags: [Treinador Photos]
+   *     summary: Download trainer photo file
+   *     tags: [Trainer Photos]
    *     parameters:
    *       - in: path
-   *         name: treinador_id
+   *         name: trainer_id
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID do treinador
+   *         description: Trainer ID
    *     responses:
    *       200:
-   *         description: Arquivo da foto
+   *         description: Photo file
    *         content:
    *           image/*:
    *             schema:
@@ -187,17 +187,17 @@ class TreinadorPhotosController {
    *               $ref: '#/components/schemas/Error'
    */
   async download(req: Request, res: Response): Promise<void> {
-    const { treinador_id } = req.params;
+    const { trainer_id } = req.params as any;
 
-    const photo = await knex('treinador_photos')
-      .where({ treinador_id, is_profile: true })
+    const photo = await knex('trainer_photos')
+      .where({ trainer_id, is_profile: true })
       .first();
 
     if (!photo) {
       throw new AppError('Foto não encontrada', 404);
     }
 
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'treinador-photos', photo.filename);
+    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-photos', photo.filename);
 
     if (!fs.existsSync(filePath)) {
       throw new AppError('Arquivo não encontrado no servidor', 404);
@@ -208,10 +208,10 @@ class TreinadorPhotosController {
 
   /**
    * @swagger
-   * /treinadores/{treinador_id}/photo:
+   * /trainers/{trainer_id}/photo:
    *   delete:
-   *     summary: Deletar foto de perfil do treinador
-   *     tags: [Treinador Photos]
+   *     summary: Delete trainer profile photo
+   *     tags: [Trainer Photos]
    *     parameters:
    *       - in: path
    *         name: treinador_id
@@ -221,7 +221,7 @@ class TreinadorPhotosController {
    *         description: ID do treinador
    *     responses:
    *       204:
-   *         description: Foto deletada com sucesso
+   *         description: Photo deleted
    *       404:
    *         description: Foto não encontrada
    *         content:
@@ -230,10 +230,10 @@ class TreinadorPhotosController {
    *               $ref: '#/components/schemas/Error'
    */
   async delete(req: Request, res: Response): Promise<Response> {
-    const { treinador_id } = req.params;
+    const { trainer_id } = req.params as any;
 
-    const photo = await knex('treinador_photos')
-      .where({ treinador_id, is_profile: true })
+    const photo = await knex('trainer_photos')
+      .where({ trainer_id, is_profile: true })
       .first();
 
     if (!photo) {
@@ -241,13 +241,13 @@ class TreinadorPhotosController {
     }
 
     // Deletar arquivo do sistema
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'treinador-photos', photo.filename);
+    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-photos', photo.filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
 
     // Deletar registro do banco
-    await knex('treinador_photos').where({ id: photo.id }).delete();
+    await knex('trainer_photos').where({ id: photo.id }).delete();
 
     return res.status(204).send();
   }

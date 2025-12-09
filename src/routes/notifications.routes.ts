@@ -23,8 +23,8 @@ const notificationsRoutes = Router();
  *                 description: ID do usuário
  *               userType:
  *                 type: string
- *                 enum: [personal, aluno]
- *                 description: Tipo de usuário
+ *                 enum: [trainer, student]
+ *                 description: User type
  *               pushToken:
  *                 type: string
  *                 description: Token de push notification do Expo
@@ -46,8 +46,8 @@ notificationsRoutes.post('/register-token', async (req: Request, res: Response) 
     throw new AppError('Todos os campos são obrigatórios: userId, userType, pushToken', 400);
   }
 
-  if (!['personal', 'aluno'].includes(userType)) {
-    throw new AppError('userType deve ser "personal" ou "aluno"', 400);
+  if (!['trainer', 'student'].includes(userType)) {
+    throw new AppError('userType deve ser "trainer" ou "student"', 400);
   }
 
   if (isNaN(Number(userId))) {
@@ -90,8 +90,8 @@ notificationsRoutes.post('/register-token', async (req: Request, res: Response) 
  *                 description: ID do usuário
  *               userType:
  *                 type: string
- *                 enum: [personal, aluno]
- *                 description: Tipo de usuário
+ *                 enum: [trainer, student]
+ *                 description: User type
  *             required:
  *               - userId
  *               - userType
@@ -109,8 +109,8 @@ notificationsRoutes.post('/unregister-token', async (req: Request, res: Response
     throw new AppError('Todos os campos são obrigatórios: userId, userType', 400);
   }
 
-  if (!['personal', 'aluno'].includes(userType)) {
-    throw new AppError('userType deve ser "personal" ou "aluno"', 400);
+  if (!['trainer', 'student'].includes(userType)) {
+    throw new AppError('userType deve ser "trainer" ou "student"', 400);
   }
 
   if (isNaN(Number(userId))) {
@@ -148,9 +148,9 @@ notificationsRoutes.post('/unregister-token', async (req: Request, res: Response
  *           schema:
  *             type: object
  *             properties:
- *               treinadorId:
+ *               trainerId:
  *                 type: integer
- *                 description: ID do personal trainer
+ *                 description: Trainer ID
  *             required:
  *               - treinadorId
  *     responses:
@@ -158,10 +158,10 @@ notificationsRoutes.post('/unregister-token', async (req: Request, res: Response
  *         description: Notificação de teste enviada
  */
 notificationsRoutes.post('/test', async (req: Request, res: Response) => {
-  const { treinadorId } = req.body;
+  const { trainerId } = req.body;
 
-  if (!treinadorId || isNaN(Number(treinadorId))) {
-    throw new AppError('treinadorId deve ser um número válido', 400);
+  if (!trainerId || isNaN(Number(trainerId))) {
+    throw new AppError('trainerId must be a valid number', 400);
   }
 
   try {
@@ -169,14 +169,14 @@ notificationsRoutes.post('/test', async (req: Request, res: Response) => {
     
     // Enviar notificação de teste
     await notificationService.sendGeneralNotification(
-      Number(treinadorId),
+      Number(trainerId),
       '🧪 Teste de Notificação',
       'Esta é uma notificação de teste para verificar se o sistema está funcionando!'
     );
 
     return res.json({ 
       message: 'Notificação de teste enviada com sucesso',
-      treinadorId: Number(treinadorId)
+      trainerId: Number(trainerId)
     });
   } catch (error: any) {
     throw new AppError(error.message || 'Erro interno do servidor', 500);

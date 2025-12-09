@@ -9,7 +9,7 @@ class FeedbackPhotosController {
    * @swagger
    * /feedback/{feedback_id}/photos:
    *   post:
-   *     summary: Upload de fotos para um feedback
+   *     summary: Upload photos for feedback
    *     tags: [Feedback Photos]
    *     parameters:
    *       - in: path
@@ -17,7 +17,7 @@ class FeedbackPhotosController {
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID do feedback
+   *         description: Feedback ID
    *     requestBody:
    *       required: true
    *       content:
@@ -35,7 +35,7 @@ class FeedbackPhotosController {
    *                 description: Descrição opcional para as fotos
    *     responses:
    *       201:
-   *         description: Fotos enviadas com sucesso
+   *         description: Photos uploaded
    *         content:
    *           application/json:
    *             schema:
@@ -114,7 +114,7 @@ class FeedbackPhotosController {
    * @swagger
    * /feedback/{feedback_id}/photos:
    *   get:
-   *     summary: Listar fotos de um feedback
+   *     summary: List photos for feedback
    *     tags: [Feedback Photos]
    *     parameters:
    *       - in: path
@@ -122,10 +122,10 @@ class FeedbackPhotosController {
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID do feedback
+   *         description: Feedback ID
    *     responses:
    *       200:
-   *         description: Lista de fotos do feedback
+   *         description: Feedback photos list
    *         content:
    *           application/json:
    *             schema:
@@ -163,7 +163,7 @@ class FeedbackPhotosController {
    * @swagger
    * /feedback/photos/{photo_id}/file:
    *   get:
-   *     summary: Baixar arquivo de foto do feedback
+   *     summary: Download feedback photo file
    *     tags: [Feedback Photos]
    *     parameters:
    *       - in: path
@@ -171,10 +171,10 @@ class FeedbackPhotosController {
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID da foto
+   *         description: Photo ID
    *     responses:
    *       200:
-   *         description: Arquivo da foto
+   *         description: Photo file
    *         content:
    *           image/*:
    *             schema:
@@ -213,7 +213,7 @@ class FeedbackPhotosController {
    * @swagger
    * /feedback/photos/{photo_id}:
    *   get:
-   *     summary: Obter informações de uma foto específica
+   *     summary: Get feedback photo info
    *     tags: [Feedback Photos]
    *     parameters:
    *       - in: path
@@ -221,10 +221,10 @@ class FeedbackPhotosController {
    *         required: true
    *         schema:
    *           type: integer
-   *         description: ID da foto
+   *         description: Photo ID
    *     responses:
    *       200:
-   *         description: Informações da foto
+   *         description: Photo info
    *         content:
    *           application/json:
    *             schema:
@@ -248,13 +248,13 @@ class FeedbackPhotosController {
         'feedback_photos.*',
         'feedback.note as feedback_note',
         'admins.name as admin_name',
-        'treinadores.name as treinador_name',
-        'clientes.name as cliente_name'
+        'trainers.name as trainer_name',
+        'students.name as student_name'
       )
       .leftJoin('feedback', 'feedback_photos.feedback_id', 'feedback.id')
       .leftJoin('admins', 'feedback.admin_id', 'admins.id')
-      .leftJoin('treinadores', 'feedback.treinador_id', 'treinadores.id')
-      .leftJoin('clientes', 'feedback.cliente_id', 'clientes.id')
+      .leftJoin('trainers', 'feedback.trainer_id', 'trainers.id')
+      .leftJoin('students', 'feedback.student_id', 'students.id')
       .where('feedback_photos.id', photo_id)
       .first();
 
@@ -269,7 +269,7 @@ class FeedbackPhotosController {
    * @swagger
    * /feedback/photos/{photo_id}:
    *   put:
-   *     summary: Atualizar descrição de uma foto
+   *     summary: Update feedback photo description
    *     tags: [Feedback Photos]
    *     parameters:
    *       - in: path
@@ -340,7 +340,7 @@ class FeedbackPhotosController {
    * @swagger
    * /feedback/photos/{photo_id}:
    *   delete:
-   *     summary: Deletar uma foto do feedback
+   *     summary: Delete feedback photo
    *     tags: [Feedback Photos]
    *     parameters:
    *       - in: path

@@ -8,10 +8,10 @@ import { CreateClienteDTO, UpdateClienteDTO, ClienteQueryParams } from '../types
 class ClientesController {
   /**
    * @swagger
-   * /clientes:
+   * /students:
    *   post:
-   *     summary: Criar novo cliente
-   *     tags: [Clientes]
+   *     summary: Create student
+   *     tags: [Students]
    *     parameters:
    *       - in: header
    *         name: admin_id
@@ -24,10 +24,30 @@ class ClientesController {
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/CreateClienteDTO'
+   *             type: object
+   *             required: [name, email, password]
+   *             properties:
+   *               name:
+   *                 type: string
+   *               email:
+   *                 type: string
+   *               password:
+   *                 type: string
+   *               trainer_id:
+   *                 type: integer
+   *                 nullable: true
+   *               phone_number:
+   *                 type: string
+   *               date_of_birth:
+   *                 type: string
+   *                 format: date
+   *               age:
+   *                 type: integer
+   *               gender:
+   *                 type: string
    *     responses:
    *       201:
-   *         description: Cliente criado com sucesso
+   *         description: Student created
    *         content:
    *           application/json:
    *             schema:
@@ -63,7 +83,7 @@ class ClientesController {
     }
 
     if (treinador_id) {
-      const treinador = await knex("treinadores")
+      const treinador = await knex("trainers")
         .where({ id: treinador_id, admin_id })
         .first();
       
@@ -72,7 +92,7 @@ class ClientesController {
       }
     }
 
-    const emailUsed = await knex("clientes")
+    const emailUsed = await knex("students")
       .where({ email, admin_id })
       .first();
 
@@ -83,10 +103,9 @@ class ClientesController {
     const hashedPassword = await bcrypt.hash(password, 8);
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
 
-    const [cliente] = await knex("clientes")
+    const [cliente] = await knex("students")
       .insert({
-        admin_id,
-        treinador_id: treinador_id || null,
+        trainer_id: treinador_id || null,
         name,
         email,
         password: hashedPassword,
@@ -99,8 +118,7 @@ class ClientesController {
       })
       .returning([
         "id",
-        "admin_id",
-        "treinador_id",
+        "trainer_id",
         "name",
         "email",
         "phone_number",
@@ -116,10 +134,10 @@ class ClientesController {
 
   /**
    * @swagger
-   * /clientes:
+   * /students:
    *   get:
-   *     summary: Listar todos os clientes
-   *     tags: [Clientes]
+   *     summary: List students
+   *     tags: [Students]
    *     parameters:
    *       - in: header
    *         name: admin_id
@@ -133,13 +151,13 @@ class ClientesController {
    *           type: string
    *         description: Termo de busca (nome, email ou telefone)
    *       - in: query
-   *         name: treinador_id
+   *         name: trainer_id
    *         schema:
    *           type: integer
    *         description: Filtrar por ID do treinador
    *     responses:
    *       200:
-   *         description: Lista de clientes
+   *         description: Student list
    *         content:
    *           application/json:
    *             schema:
@@ -161,47 +179,46 @@ class ClientesController {
       throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
-    let clientesQuery = knex("clientes")
+    let clientesQuery = knex("students")
       .select(
-        "clientes.id",
-        "clientes.admin_id",
-        "clientes.treinador_id",
-        "clientes.name",
-        "clientes.email",
-        "clientes.phone_number",
-        "clientes.date_of_birth",
-        "clientes.age",
-        "clientes.gender",
-        "clientes.created_at",
-        "clientes.updated_at",
-        "treinadores.name as treinador_name"
+        "students.id",
+        "students.trainer_id",
+        "students.name",
+        "students.email",
+        "students.phone_number",
+        "students.date_of_birth",
+        "students.age",
+        "students.gender",
+        "students.created_at",
+        "students.updated_at",
+        "trainers.name as trainer_name"
       )
-      .leftJoin("treinadores", "clientes.treinador_id", "treinadores.id")
-      .where("clientes.admin_id", admin_id);
+      .leftJoin("trainers", "students.trainer_id", "trainers.id")
+      .where("trainers.admin_id", admin_id);
 
     if (term) {
       clientesQuery = clientesQuery.where(function() {
-        this.where("clientes.name", "like", `%${term}%`)
-          .orWhere("clientes.email", "like", `%${term}%`)
-          .orWhere("clientes.phone_number", "like", `%${term}%`);
+        this.where("students.name", "like", `%${term}%`)
+          .orWhere("students.email", "like", `%${term}%`)
+          .orWhere("students.phone_number", "like", `%${term}%`);
       });
     }
 
     if (treinador_id) {
-      clientesQuery = clientesQuery.where("clientes.treinador_id", treinador_id);
+      clientesQuery = clientesQuery.where("students.trainer_id", treinador_id);
     }
 
-    const clientes = await clientesQuery.orderBy("clientes.name", "asc");
+    const clientes = await clientesQuery.orderBy("students.name", "asc");
 
     return res.json(clientes);
   }
 
   /**
    * @swagger
-   * /clientes/{id}:
+   * /students/{id}:
    *   get:
-   *     summary: Buscar cliente por ID
-   *     tags: [Clientes]
+   *     summary: Get student by ID
+   *     tags: [Students]
    *     parameters:
    *       - in: path
    *         name: id
@@ -217,7 +234,7 @@ class ClientesController {
    *         description: ID do administrador
    *     responses:
    *       200:
-   *         description: Cliente encontrado
+   *         description: Student found
    *         content:
    *           application/json:
    *             schema:
@@ -247,23 +264,23 @@ class ClientesController {
       throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
-    const cliente = await knex("clientes")
+    const cliente = await knex("students")
       .select(
-        "clientes.id",
-        "clientes.admin_id",
-        "clientes.treinador_id",
-        "clientes.name",
-        "clientes.email",
-        "clientes.phone_number",
-        "clientes.date_of_birth",
-        "clientes.age",
-        "clientes.gender",
-        "clientes.created_at",
-        "clientes.updated_at",
-        "treinadores.name as treinador_name"
+        "students.id",
+        "students.trainer_id",
+        "students.name",
+        "students.email",
+        "students.phone_number",
+        "students.date_of_birth",
+        "students.age",
+        "students.gender",
+        "students.created_at",
+        "students.updated_at",
+        "trainers.name as trainer_name"
       )
-      .leftJoin("treinadores", "clientes.treinador_id", "treinadores.id")
-      .where({ "clientes.id": id, "clientes.admin_id": admin_id })
+      .leftJoin("trainers", "students.trainer_id", "trainers.id")
+      .where({ "students.id": id })
+      .andWhere("trainers.admin_id", admin_id)
       .first();
     
     if (!cliente) {
@@ -275,10 +292,10 @@ class ClientesController {
 
   /**
    * @swagger
-   * /clientes/{id}:
+   * /students/{id}:
    *   put:
-   *     summary: Atualizar cliente
-   *     tags: [Clientes]
+   *     summary: Update student
+   *     tags: [Students]
    *     parameters:
    *       - in: path
    *         name: id
@@ -300,7 +317,7 @@ class ClientesController {
    *             $ref: '#/components/schemas/UpdateClienteDTO'
    *     responses:
    *       200:
-   *         description: Cliente atualizado com sucesso
+   *         description: Student updated
    *         content:
    *           application/json:
    *             schema:
@@ -333,14 +350,18 @@ class ClientesController {
       throw new AppError("É necessário enviar o ID do admin", 400);
     }
 
-    const cliente = await knex("clientes").where({ id, admin_id }).first();
+    const cliente = await knex("students")
+      .leftJoin("trainers", "students.trainer_id", "trainers.id")
+      .where({ "students.id": id })
+      .andWhere("trainers.admin_id", admin_id)
+      .first();
 
     if (!cliente) {
       throw new AppError("Cliente não encontrado", 404);
     }
 
     if (email && email !== cliente.email) {
-      const existingClienteWithEmail = await knex("clientes")
+      const existingClienteWithEmail = await knex("students")
         .where({ email, admin_id })
         .andWhereNot({ id })
         .first();
@@ -351,7 +372,7 @@ class ClientesController {
     }
 
     if (treinador_id) {
-      const treinador = await knex("treinadores")
+      const treinador = await knex("trainers")
         .where({ id: treinador_id, admin_id })
         .first();
       
@@ -375,25 +396,25 @@ class ClientesController {
       updatedData.password = await bcrypt.hash(password, 8);
     }
 
-    await knex("clientes").update(updatedData).where({ id, admin_id });
+    await knex("students").update(updatedData).where({ id });
 
-    const updatedCliente = await knex("clientes")
+    const updatedCliente = await knex("students")
       .select(
-        "clientes.id",
-        "clientes.admin_id",
-        "clientes.treinador_id",
-        "clientes.name",
-        "clientes.email",
-        "clientes.phone_number",
-        "clientes.date_of_birth",
-        "clientes.age",
-        "clientes.gender",
-        "clientes.created_at",
-        "clientes.updated_at",
-        "treinadores.name as treinador_name"
+        "students.id",
+        "students.trainer_id",
+        "students.name",
+        "students.email",
+        "students.phone_number",
+        "students.date_of_birth",
+        "students.age",
+        "students.gender",
+        "students.created_at",
+        "students.updated_at",
+        "trainers.name as trainer_name"
       )
-      .leftJoin("treinadores", "clientes.treinador_id", "treinadores.id")
-      .where({ "clientes.id": id, "clientes.admin_id": admin_id })
+      .leftJoin("trainers", "students.trainer_id", "trainers.id")
+      .where({ "students.id": id })
+      .andWhere("trainers.admin_id", admin_id)
       .first();
 
     return res.status(200).json({
@@ -404,10 +425,10 @@ class ClientesController {
 
   /**
    * @swagger
-   * /clientes/{id}:
+   * /students/{id}:
    *   delete:
-   *     summary: Excluir cliente
-   *     tags: [Clientes]
+   *     summary: Delete student
+   *     tags: [Students]
    *     parameters:
    *       - in: path
    *         name: id
@@ -423,7 +444,7 @@ class ClientesController {
    *         description: ID do administrador
    *     responses:
    *       200:
-   *         description: Cliente excluído com sucesso
+   *         description: Student deleted
    *         content:
    *           application/json:
    *             schema:
@@ -453,13 +474,17 @@ class ClientesController {
       throw new AppError("É necessário enviar o ID do admin e do cliente", 400);
     }
 
-    const cliente = await knex("clientes").where({ id, admin_id }).first();
+    const cliente = await knex("students")
+      .leftJoin("trainers", "students.trainer_id", "trainers.id")
+      .where({ "students.id": id })
+      .andWhere("trainers.admin_id", admin_id)
+      .first();
     
     if (!cliente) {
       throw new AppError("Cliente não encontrado", 404);
     }
     
-    await knex("clientes").where({ id, admin_id }).delete();
+    await knex("students").where({ id }).delete();
     
     return res.json({ message: "Cliente excluído com sucesso" });
   }

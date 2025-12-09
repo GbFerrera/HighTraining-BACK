@@ -8,14 +8,24 @@ class FeedbackController {
    * @swagger
    * /feedback:
    *   post:
-   *     summary: Criar um novo feedback
+   *     summary: Create feedback
    *     tags: [Feedback]
    *     requestBody:
    *       required: true
    *       content:
    *         application/json:
    *           schema:
-   *             $ref: '#/components/schemas/CreateFeedbackDTO'
+   *             type: object
+   *             required: [admin_id, trainer_id, student_id, note]
+   *             properties:
+   *               admin_id:
+   *                 type: integer
+   *               trainer_id:
+   *                 type: integer
+   *               student_id:
+   *                 type: integer
+   *               note:
+   *                 type: string
    *     responses:
    *       201:
    *         description: Feedback criado com sucesso
@@ -37,14 +47,14 @@ class FeedbackController {
    *               $ref: '#/components/schemas/Error'
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { admin_id, treinador_id, cliente_id, note } = req.body;
+    const { admin_id, trainer_id, student_id, note } = req.body;
 
     // Validações básicas
-    if (!admin_id || !treinador_id || !cliente_id || !note) {
-      throw new AppError('Todos os campos são obrigatórios: admin_id, treinador_id, cliente_id, note', 400);
+    if (!admin_id || !trainer_id || !student_id || !note) {
+      throw new AppError('Todos os campos são obrigatórios: admin_id, trainer_id, student_id, note', 400);
     }
 
-    if (isNaN(Number(admin_id)) || isNaN(Number(treinador_id)) || isNaN(Number(cliente_id))) {
+    if (isNaN(Number(admin_id)) || isNaN(Number(trainer_id)) || isNaN(Number(student_id))) {
       throw new AppError('IDs devem ser números válidos', 400);
     }
 
@@ -59,13 +69,13 @@ class FeedbackController {
     }
 
     // Verificar se treinador existe
-    const treinador = await knex('treinadores').where({ id: treinador_id }).first();
+    const treinador = await knex('trainers').where({ id: trainer_id }).first();
     if (!treinador) {
       throw new AppError('Treinador não encontrado', 404);
     }
 
     // Verificar se cliente existe
-    const cliente = await knex('clientes').where({ id: cliente_id }).first();
+    const cliente = await knex('students').where({ id: student_id }).first();
     if (!cliente) {
       throw new AppError('Cliente não encontrado', 404);
     }
@@ -73,8 +83,8 @@ class FeedbackController {
     // Criar feedback
     const insertResult = await knex('feedback').insert({
       admin_id,
-      treinador_id,
-      cliente_id,
+      trainer_id,
+      student_id,
       note: note.trim(),
       created_at: knex.fn.now(),
       updated_at: knex.fn.now()
@@ -86,10 +96,10 @@ class FeedbackController {
     try {
       const notificationService = req.app.get('notificationService') as NotificationService;
       if (notificationService) {
-        await notificationService.sendFeedbackNotification(treinador_id, {
+        await notificationService.sendFeedbackNotification(trainer_id, {
           id: feedback.id,
-          cliente_id,
-          cliente_name: cliente.name,
+          student_id,
+          student_name: cliente.name,
           note: feedback.note,
           created_at: feedback.created_at
         });
@@ -106,7 +116,7 @@ class FeedbackController {
    * @swagger
    * /feedback:
    *   get:
-   *     summary: Listar todos os feedbacks
+   *     summary: List feedbacks
    *     tags: [Feedback]
    *     parameters:
    *       - in: query
@@ -115,12 +125,12 @@ class FeedbackController {
    *           type: integer
    *         description: Filtrar por ID do admin
    *       - in: query
-   *         name: treinador_id
+   *         name: trainer_id
    *         schema:
    *           type: integer
    *         description: Filtrar por ID do treinador
    *       - in: query
-   *         name: cliente_id
+   *         name: student_id
    *         schema:
    *           type: integer
    *         description: Filtrar por ID do cliente
@@ -138,36 +148,47 @@ class FeedbackController {
    *         description: Itens por página
    *     responses:
    *       200:
-   *         description: Lista de feedbacks
+   *         description: Feedback list
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 feedbacks:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *                 pagination:
+   *                   type: object
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/FeedbackListResponse'
    */
   async index(req: Request, res: Response): Promise<Response> {
-    const { admin_id, treinador_id, cliente_id, page = 1, limit = 10 } = req.query;
+    const { admin_id, trainer_id, student_id, page = 1, limit = 10 } = req.query as any;
 
     let query = knex('feedback')
       .select(
         'feedback.*',
         'admins.name as admin_name',
-        'treinadores.name as treinador_name',
-        'clientes.name as cliente_name'
+        'trainers.name as trainer_name',
+        'students.name as student_name'
       )
       .leftJoin('admins', 'feedback.admin_id', 'admins.id')
-      .leftJoin('treinadores', 'feedback.treinador_id', 'treinadores.id')
-      .leftJoin('clientes', 'feedback.cliente_id', 'clientes.id')
+      .leftJoin('trainers', 'feedback.trainer_id', 'trainers.id')
+      .leftJoin('students', 'feedback.student_id', 'students.id')
       .orderBy('feedback.created_at', 'desc');
 
     // Aplicar filtros se fornecidos
     if (admin_id) {
       query = query.where('feedback.admin_id', admin_id);
     }
-    if (treinador_id) {
-      query = query.where('feedback.treinador_id', treinador_id);
+    if (trainer_id) {
+      query = query.where('feedback.trainer_id', trainer_id);
     }
-    if (cliente_id) {
-      query = query.where('feedback.cliente_id', cliente_id);
+    if (student_id) {
+      query = query.where('feedback.student_id', student_id);
     }
 
     // Paginação
@@ -180,8 +201,8 @@ class FeedbackController {
     // Contar total para paginação
     let countQuery = knex('feedback').count('* as total');
     if (admin_id) countQuery = countQuery.where('admin_id', admin_id);
-    if (treinador_id) countQuery = countQuery.where('treinador_id', treinador_id);
-    if (cliente_id) countQuery = countQuery.where('cliente_id', cliente_id);
+    if (trainer_id) countQuery = countQuery.where('trainer_id', trainer_id);
+    if (student_id) countQuery = countQuery.where('student_id', student_id);
 
     const [{ total }] = await countQuery;
 
@@ -200,7 +221,7 @@ class FeedbackController {
    * @swagger
    * /feedback/{id}:
    *   get:
-   *     summary: Obter um feedback específico
+   *     summary: Get feedback by ID
    *     tags: [Feedback]
    *     parameters:
    *       - in: path
@@ -211,7 +232,7 @@ class FeedbackController {
    *         description: ID do feedback
    *     responses:
    *       200:
-   *         description: Feedback encontrado
+   *         description: Feedback found
    *         content:
    *           application/json:
    *             schema:
@@ -234,12 +255,12 @@ class FeedbackController {
       .select(
         'feedback.*',
         'admins.name as admin_name',
-        'treinadores.name as treinador_name',
-        'clientes.name as cliente_name'
+        'trainers.name as trainer_name',
+        'students.name as student_name'
       )
       .leftJoin('admins', 'feedback.admin_id', 'admins.id')
-      .leftJoin('treinadores', 'feedback.treinador_id', 'treinadores.id')
-      .leftJoin('clientes', 'feedback.cliente_id', 'clientes.id')
+      .leftJoin('trainers', 'feedback.trainer_id', 'trainers.id')
+      .leftJoin('students', 'feedback.student_id', 'students.id')
       .where('feedback.id', id)
       .first();
 
@@ -254,7 +275,7 @@ class FeedbackController {
    * @swagger
    * /feedback/{id}:
    *   put:
-   *     summary: Atualizar um feedback
+   *     summary: Update feedback
    *     tags: [Feedback]
    *     parameters:
    *       - in: path
@@ -271,7 +292,7 @@ class FeedbackController {
    *             $ref: '#/components/schemas/UpdateFeedbackDTO'
    *     responses:
    *       200:
-   *         description: Feedback atualizado com sucesso
+   *         description: Feedback updated
    *         content:
    *           application/json:
    *             schema:
@@ -325,7 +346,7 @@ class FeedbackController {
    * @swagger
    * /feedback/{id}:
    *   delete:
-   *     summary: Deletar um feedback
+   *     summary: Delete feedback
    *     tags: [Feedback]
    *     parameters:
    *       - in: path
@@ -336,7 +357,7 @@ class FeedbackController {
    *         description: ID do feedback
    *     responses:
    *       204:
-   *         description: Feedback deletado com sucesso
+   *         description: Feedback deleted
    *       404:
    *         description: Feedback não encontrado
    *         content:

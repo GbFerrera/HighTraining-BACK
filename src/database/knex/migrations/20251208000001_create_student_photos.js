@@ -1,12 +1,8 @@
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
- */
 exports.up = function(knex) {
-  return knex.schema.createTable('cliente_photos', function(table) {
+  return knex.schema.createTable('student_photos', function(table) {
     table.increments('id').primary();
-    table.integer('cliente_id').unsigned().notNullable();
-    table.foreign('cliente_id').references('id').inTable('clientes').onDelete('CASCADE');
+    table.integer('student_id').unsigned().notNullable();
+    table.foreign('student_id').references('id').inTable('students').onDelete('CASCADE');
     table.string('filename').notNullable();
     table.string('filepath').notNullable();
     table.string('mimetype').notNullable();
@@ -17,10 +13,7 @@ exports.up = function(knex) {
   });
 };
 
-/**
- * @param { import("knex").Knex } knex
- * @returns { Promise<void> }
- */
 exports.down = function(knex) {
-  return knex.schema.dropTable('cliente_photos');
+  return knex.schema.dropTable('student_photos');
 };
+
