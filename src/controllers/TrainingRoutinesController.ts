@@ -68,6 +68,31 @@ class TrainingRoutinesController {
       throw new AppError('Campos obrigatórios: student_id, start_date, end_date, routine_type, goal, difficulty', 400);
     }
 
+    // Validação de routine_type
+    const validRoutineTypes = ['Dia da semana', 'Numérico'];
+    if (!validRoutineTypes.includes(routine_type)) {
+      throw new AppError('routine_type deve ser "Dia da semana" ou "Numérico"', 400);
+    }
+
+    // Validação de goal
+    const validGoals = [
+      'Hipertrofia',
+      'Redução de gordura',
+      'Redução de gordura/hipertrofia',
+      'Definição muscular',
+      'Condicionamento físico',
+      'Qualidade de vida'
+    ];
+    if (!validGoals.includes(goal)) {
+      throw new AppError('goal deve ser um dos seguintes: Hipertrofia, Redução de gordura, Redução de gordura/hipertrofia, Definição muscular, Condicionamento físico, Qualidade de vida', 400);
+    }
+
+    // Validação de difficulty
+    const validDifficulties = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado'];
+    if (!validDifficulties.includes(difficulty)) {
+      throw new AppError('difficulty deve ser um dos seguintes: Adaptação, Iniciante, Intermediário, Avançado', 400);
+    }
+
     const admin = await knex('admins').where({ id: admin_id }).first();
     if (!admin) throw new AppError('Admin não encontrado', 404);
 
@@ -204,6 +229,37 @@ class TrainingRoutinesController {
       hide_after_expiration,
       hide_before_start,
     } = req.body as any;
+
+    // Validação de routine_type
+    if (routine_type !== undefined) {
+      const validRoutineTypes = ['Dia da semana', 'Numérico'];
+      if (!validRoutineTypes.includes(routine_type)) {
+        throw new AppError('routine_type deve ser "Dia da semana" ou "Numérico"', 400);
+      }
+    }
+
+    // Validação de goal
+    if (goal !== undefined) {
+      const validGoals = [
+        'Hipertrofia',
+        'Redução de gordura',
+        'Redução de gordura/hipertrofia',
+        'Definição muscular',
+        'Condicionamento físico',
+        'Qualidade de vida'
+      ];
+      if (!validGoals.includes(goal)) {
+        throw new AppError('goal deve ser um dos seguintes: Hipertrofia, Redução de gordura, Redução de gordura/hipertrofia, Definição muscular, Condicionamento físico, Qualidade de vida', 400);
+      }
+    }
+
+    // Validação de difficulty
+    if (difficulty !== undefined) {
+      const validDifficulties = ['Adaptação', 'Iniciante', 'Intermediário', 'Avançado'];
+      if (!validDifficulties.includes(difficulty)) {
+        throw new AppError('difficulty deve ser um dos seguintes: Adaptação, Iniciante, Intermediário, Avançado', 400);
+      }
+    }
 
     await knex('training_routines')
       .update({
