@@ -92,9 +92,18 @@ class ClientesController {
       }
     }
 
-    const emailUsed = await knex("students")
-      .where({ email, admin_id })
-      .first();
+    let emailUsed;
+    if (treinador_id) {
+      emailUsed = await knex("students")
+        .leftJoin("trainers", "students.trainer_id", "trainers.id")
+        .where("students.email", email)
+        .andWhere("trainers.admin_id", admin_id)
+        .first();
+    } else {
+      emailUsed = await knex("students")
+        .where({ email })
+        .first();
+    }
 
     if (emailUsed) {
       throw new AppError("Este e-mail já está cadastrado", 400);
@@ -361,10 +370,23 @@ class ClientesController {
     }
 
     if (email && email !== cliente.email) {
-      const existingClienteWithEmail = await knex("students")
-        .where({ email, admin_id })
-        .andWhereNot({ id })
-        .first();
+      let existingClienteWithEmail;
+      // Se houver treinador (atual ou novo), valida dentro do escopo do admin via JOIN
+      const scopeTreinadorId = treinador_id !== undefined ? treinador_id : cliente.trainer_id;
+      if (scopeTreinadorId) {
+        existingClienteWithEmail = await knex("students")
+          .leftJoin("trainers", "students.trainer_id", "trainers.id")
+          .where("students.email", email)
+          .andWhere("trainers.admin_id", admin_id)
+          .andWhereNot("students.id", id)
+          .first();
+      } else {
+        // Sem treinador associado, valida globalmente por e-mail
+        existingClienteWithEmail = await knex("students")
+          .where({ email })
+          .andWhereNot({ id })
+          .first();
+      }
 
       if (existingClienteWithEmail) {
         throw new AppError("Este e-mail já está cadastrado", 400);
@@ -384,7 +406,7 @@ class ClientesController {
     const updatedData: any = {
       name: name || cliente.name,
       email: email || cliente.email,
-      treinador_id: treinador_id !== undefined ? treinador_id : cliente.treinador_id,
+      trainer_id: treinador_id !== undefined ? treinador_id : cliente.trainer_id,
       phone_number: phone_number !== undefined ? phone_number : cliente.phone_number,
       date_of_birth: date_of_birth !== undefined ? date_of_birth : cliente.date_of_birth,
       age: age !== undefined ? age : cliente.age,

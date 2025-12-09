@@ -16,12 +16,14 @@ import feedbackPhotosRoutes from './feedbackPhotos.routes';
 import repetitionsRoutes from './repetitions.routes';
 import trainingRoutinesRoutes from './trainingRoutines.routes';
 import notificationsRoutes from './notifications.routes';
+import trainerSchedulesRoutes from './trainerSchedules.routes';
 
 const routes = Router();
 
 routes.use("/sessions", sessionsRoutes);
 routes.use("/admins", adminsRoutes);
 routes.use("/trainers", treinadoresRoutes);
+routes.use("/trainers", trainerSchedulesRoutes);
 routes.use("/students", clientesRoutes);
 routes.use("/trainings", trainingsRoutes);
 routes.use("/routine-trainings", clientTrainingRoutes);

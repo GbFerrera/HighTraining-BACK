@@ -11,6 +11,10 @@ interface CreateTreinadorDTO {
   document: string;
   phone_number: string;
   position?: string;
+  years_of_experience?: number;
+  specialties?: string;
+  academic_background?: string;
+  about_me?: string;
 }
 
 interface UpdateTreinadorDTO {
@@ -20,6 +24,10 @@ interface UpdateTreinadorDTO {
   phone_number?: string;
   position?: string;
   password?: string;
+  years_of_experience?: number;
+  specialties?: string;
+  academic_background?: string;
+  about_me?: string;
 }
 
 interface TreinadorQueryParams {
@@ -65,7 +73,9 @@ class TreinadoresController {
    *         description: Trainer created
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, email, password, document, phone_number, position } = req.body as CreateTreinadorDTO;
+    const { name, email, password, document, phone_number, position,
+      years_of_experience, specialties, academic_background, about_me
+    } = req.body as CreateTreinadorDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -109,6 +119,10 @@ class TreinadoresController {
         document,
         phone_number,
         position: position || null,
+        years_of_experience: years_of_experience || null,
+        specialties: specialties || null,
+        academic_background: academic_background || null,
+        about_me: about_me || null,
         created_at: now,
         updated_at: now,
       })
@@ -120,6 +134,10 @@ class TreinadoresController {
         "document",
         "phone_number",
         "position",
+        "years_of_experience",
+        "specialties",
+        "academic_background",
+        "about_me",
         "created_at",
         "updated_at",
       ]);
@@ -164,6 +182,10 @@ class TreinadoresController {
         "document",
         "phone_number",
         "position",
+        "years_of_experience",
+        "specialties",
+        "academic_background",
+        "about_me",
         "created_at",
         "updated_at"
       )
@@ -224,6 +246,10 @@ class TreinadoresController {
         "document",
         "phone_number",
         "position",
+        "years_of_experience",
+        "specialties",
+        "academic_background",
+        "about_me",
         "created_at",
         "updated_at"
       )
@@ -278,7 +304,9 @@ class TreinadoresController {
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { name, email, document, phone_number, position, password } = req.body as UpdateTreinadorDTO;
+    const { name, email, document, phone_number, position, password,
+      years_of_experience, specialties, academic_background, about_me
+    } = req.body as UpdateTreinadorDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -319,6 +347,10 @@ class TreinadoresController {
       document: document || treinador.document,
       phone_number: phone_number || treinador.phone_number,
       position: position !== undefined ? position : treinador.position,
+      years_of_experience: years_of_experience !== undefined ? years_of_experience : treinador.years_of_experience,
+      specialties: specialties !== undefined ? specialties : treinador.specialties,
+      academic_background: academic_background !== undefined ? academic_background : treinador.academic_background,
+      about_me: about_me !== undefined ? about_me : treinador.about_me,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     };
 
@@ -337,6 +369,10 @@ class TreinadoresController {
         "document",
         "phone_number",
         "position",
+        "years_of_experience",
+        "specialties",
+        "academic_background",
+        "about_me",
         "created_at",
         "updated_at"
       )
