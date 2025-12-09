@@ -88,6 +88,7 @@ class ClienteEstatisticController {
    */
   async create(req: Request, res: Response): Promise<Response> {
     const { 
+      student_id: student_id_raw, 
       cliente_id, 
       weight, 
       height, 
@@ -110,15 +111,16 @@ class ClienteEstatisticController {
     } = req.body;
     const admin_id = req.headers.admin_id as string;
 
+    const student_id = student_id_raw ?? cliente_id;
     if (!admin_id) throw new AppError("O ID do admin é obrigatório", 400);
-    if (!cliente_id) throw new AppError("ID do cliente é obrigatório", 400);
+    if (!student_id) throw new AppError("ID do cliente é obrigatório", 400);
 
     const admin = await knex("admins").where({ id: admin_id }).first();
     if (!admin) throw new AppError("Admin não encontrado", 404);
 
     const cliente = await knex("students")
       .leftJoin("trainers", "students.trainer_id", "trainers.id")
-      .where({ "students.id": cliente_id })
+      .where({ "students.id": student_id })
       .andWhere("trainers.admin_id", admin_id)
       .first();
     if (!cliente) throw new AppError("Cliente não encontrado", 404);
@@ -128,7 +130,7 @@ class ClienteEstatisticController {
     const [estatistic] = await knex("student_statistics")
       .insert({ 
         admin_id, 
-        student_id: cliente_id, 
+        student_id: student_id, 
         weight: weight || null, 
         height: height || null, 
         muscle_mass_percentage: muscle_mass_percentage || null, 

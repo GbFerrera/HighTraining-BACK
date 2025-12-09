@@ -59,7 +59,7 @@ class SessionController {
     }
 
     // Busca usuário na tabela apropriada
-    const table = userType === 'personal' ? 'treinadores' : 'clientes';
+    const table = userType === 'personal' ? 'trainers' : 'students';
     const user = await knex(table)
       .where({ email })
       .first();
@@ -150,7 +150,7 @@ class SessionController {
       throw new AppError("Documento é obrigatório para Personal", 400);
     }
 
-    const table = userType === 'personal' ? 'treinadores' : 'clientes';
+    const table = userType === 'personal' ? 'trainers' : 'students';
     
     // Verifica se email já está em uso
     const emailExists = await knex(table)
@@ -163,7 +163,7 @@ class SessionController {
 
     // Para Personal, verifica se documento já está em uso
     if (userType === 'personal' && document) {
-      const documentExists = await knex('treinadores')
+      const documentExists = await knex('trainers')
         .where({ document })
         .first();
 
@@ -246,7 +246,7 @@ class SessionController {
       const userType = decoded.userType;
 
       // Busca usuário na tabela apropriada
-      const table = userType === 'personal' ? 'treinadores' : 'clientes';
+      const table = userType === 'personal' ? 'trainers' : 'students';
       const user = await knex(table)
         .where({ id: userId })
         .first();
