@@ -15,6 +15,7 @@ import feedbackRoutes from './feedback.routes';
 import feedbackPhotosRoutes from './feedbackPhotos.routes';
 import repetitionsRoutes from './repetitions.routes';
 import trainingRoutinesRoutes from './trainingRoutines.routes';
+import routineTrainingsRoutes from './routineTrainings.routes';
 import notificationsRoutes from './notifications.routes';
 import trainerSchedulesRoutes from './trainerSchedules.routes';
 
@@ -26,7 +27,7 @@ routes.use("/trainers", treinadoresRoutes);
 routes.use("/trainers", trainerSchedulesRoutes);
 routes.use("/students", clientesRoutes);
 routes.use("/trainings", trainingsRoutes);
-routes.use("/routine-trainings", clientTrainingRoutes);
+routes.use("/client-trainings", clientTrainingRoutes);
 routes.use("/student-statistics", clienteEstatisticRoutes);
 routes.use("/schedule-appointments", agendaPointRoutes);
 routes.use("/exercises", exercisesRoutes);
@@ -38,5 +39,6 @@ routes.use("/feedback", feedbackPhotosRoutes);
 routes.use("/notifications", notificationsRoutes);
 routes.use("/repetitions", repetitionsRoutes);
 routes.use("/training-routines", trainingRoutinesRoutes);
+routes.use("/routine-trainings", routineTrainingsRoutes);
 
 export default routes;
