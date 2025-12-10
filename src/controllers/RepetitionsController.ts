@@ -13,6 +13,118 @@ const TABLES: Record<RepType, string> = {
 };
 
 class RepetitionsController {
+  /**
+   * @swagger
+   * /repetitions/{type}:
+   *   post:
+   *     summary: Criar nova repetição de exercício
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: type
+   *         required: true
+   *         schema:
+   *           type: string
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *         description: Tipo de repetição
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             oneOf:
+   *               - type: object
+   *                 title: reps-load
+   *                 required: [exercise_id, set, reps, load, rest]
+   *                 properties:
+   *                   exercise_id:
+   *                     type: number
+   *                     example: 1
+   *                   set:
+   *                     type: number
+   *                     example: 3
+   *                   reps:
+   *                     type: number
+   *                     example: 12
+   *                   load:
+   *                     type: number
+   *                     example: 50
+   *                   rest:
+   *                     type: number
+   *                     example: 60
+   *               - type: object
+   *                 title: reps-load-time
+   *                 required: [exercise_id, reps, load, time]
+   *                 properties:
+   *                   exercise_id:
+   *                     type: number
+   *                     example: 1
+   *                   reps:
+   *                     type: number
+   *                     example: 12
+   *                   load:
+   *                     type: number
+   *                     example: 50
+   *                   time:
+   *                     type: number
+   *                     example: 30
+   *               - type: object
+   *                 title: complete-set
+   *                 required: [exercise_id, set, reps, load, time, rest]
+   *                 properties:
+   *                   exercise_id:
+   *                     type: number
+   *                     example: 1
+   *                   set:
+   *                     type: number
+   *                     example: 3
+   *                   reps:
+   *                     type: number
+   *                     example: 12
+   *                   load:
+   *                     type: number
+   *                     example: 50
+   *                   time:
+   *                     type: number
+   *                     example: 30
+   *                   rest:
+   *                     type: number
+   *                     example: 60
+   *               - type: object
+   *                 title: reps-time
+   *                 required: [exercise_id, set, reps, time, rest]
+   *                 properties:
+   *                   exercise_id:
+   *                     type: number
+   *                     example: 1
+   *                   set:
+   *                     type: number
+   *                     example: 3
+   *                   reps:
+   *                     type: number
+   *                     example: 12
+   *                   time:
+   *                     type: number
+   *                     example: 30
+   *                   rest:
+   *                     type: number
+   *                     example: 60
+   *     responses:
+   *       201:
+   *         description: Repetição criada com sucesso
+   *       400:
+   *         description: Dados inválidos ou tipo de repetição inválido
+   *       404:
+   *         description: Exercício não encontrado
+   */
   async create(req: Request, res: Response): Promise<Response> {
     const { type } = req.params as { type: RepType };
     const admin_id = req.headers.admin_id as string;
@@ -68,6 +180,39 @@ class RepetitionsController {
     return res.status(201).json(row);
   }
 
+  /**
+   * @swagger
+   * /repetitions/{type}:
+   *   get:
+   *     summary: Listar repetições de exercício por tipo
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: type
+   *         required: true
+   *         schema:
+   *           type: string
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *         description: Tipo de repetição
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *       - in: query
+   *         name: exercise_id
+   *         schema:
+   *           type: number
+   *         description: Filtrar por ID do exercício
+   *     responses:
+   *       200:
+   *         description: Lista de repetições
+   *       400:
+   *         description: Tipo de repetição inválido
+   */
   async index(req: Request, res: Response): Promise<Response> {
     const { type } = req.params as { type: RepType };
     const admin_id = req.headers.admin_id as string;
@@ -91,6 +236,42 @@ class RepetitionsController {
     return res.json(rows);
   }
 
+  /**
+   * @swagger
+   * /repetitions/{type}/{id}:
+   *   get:
+   *     summary: Obter repetição específica por ID
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: type
+   *         required: true
+   *         schema:
+   *           type: string
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *         description: Tipo de repetição
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID da repetição
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     responses:
+   *       200:
+   *         description: Repetição encontrada
+   *       400:
+   *         description: Tipo de repetição inválido
+   *       404:
+   *         description: Registro não encontrado
+   */
   async show(req: Request, res: Response): Promise<Response> {
     const { type, id } = req.params as { type: RepType; id: string };
     const admin_id = req.headers.admin_id as string;
@@ -113,6 +294,42 @@ class RepetitionsController {
     return res.json(row);
   }
 
+  /**
+   * @swagger
+   * /repetitions/{type}/{id}:
+   *   delete:
+   *     summary: Deletar repetição específica
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: type
+   *         required: true
+   *         schema:
+   *           type: string
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *         description: Tipo de repetição
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID da repetição
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     responses:
+   *       200:
+   *         description: Registro excluído com sucesso
+   *       400:
+   *         description: Tipo de repetição inválido
+   *       404:
+   *         description: Registro não encontrado
+   */
   async delete(req: Request, res: Response): Promise<Response> {
     const { type, id } = req.params as { type: RepType; id: string };
     const admin_id = req.headers.admin_id as string;
