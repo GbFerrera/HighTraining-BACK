@@ -18,6 +18,7 @@ import trainingRoutinesRoutes from './trainingRoutines.routes';
 import routineTrainingsRoutes from './routineTrainings.routes';
 import notificationsRoutes from './notifications.routes';
 import trainerSchedulesRoutes from './trainerSchedules.routes';
+import timelineRoutes from './timeline.routes';
 
 const routes = Router();
 
@@ -40,5 +41,6 @@ routes.use("/notifications", notificationsRoutes);
 routes.use("/repetitions", repetitionsRoutes);
 routes.use("/training-routines", trainingRoutinesRoutes);
 routes.use("/routine-trainings", routineTrainingsRoutes);
+routes.use("/timeline", timelineRoutes);
 
 export default routes;

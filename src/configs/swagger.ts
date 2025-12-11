@@ -332,6 +332,29 @@ const options: swaggerJsdoc.Options = {
             description: { type: 'string', nullable: true, example: 'Nova descrição da foto', description: 'Descrição da foto' },
           },
         },
+        TimelineEntry: {
+          type: 'object',
+          properties: {
+            id: { type: 'number', example: 1 },
+            student_id: { type: 'number', example: 3 },
+            filename: { type: 'string', example: 't1l2m3n4o5p6-1733940000000.jpg' },
+            filepath: { type: 'string', example: '/path/to/uploads/timeline-photos/t1l2m3n4o5p6-1733940000000.jpg' },
+            mimetype: { type: 'string', example: 'image/jpeg' },
+            size: { type: 'number', example: 204800 },
+            description: { type: 'string', nullable: true, example: 'Foto de evolução: semana 4' },
+            event_at: { type: 'string', format: 'date-time' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+            student_name: { type: 'string', nullable: true, example: 'João Cliente' },
+          },
+        },
+        UpdateTimelineEntryDTO: {
+          type: 'object',
+          properties: {
+            description: { type: 'string', nullable: true, example: 'Atualização: postura melhorada' },
+            event_at: { type: 'string', format: 'date-time', example: '2025-12-11T10:30:00Z' },
+          },
+        },
       },
     },
     security: [

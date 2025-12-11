@@ -7,6 +7,7 @@ import fs from 'fs';
 const clienteUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos');
 const treinadorUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'treinador-photos');
 const feedbackUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'feedback-photos');
+const timelineUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'timeline-photos');
 
 // Criar diretórios se não existirem
 if (!fs.existsSync(clienteUploadDir)) {
@@ -19,6 +20,10 @@ if (!fs.existsSync(treinadorUploadDir)) {
 
 if (!fs.existsSync(feedbackUploadDir)) {
   fs.mkdirSync(feedbackUploadDir, { recursive: true });
+}
+
+if (!fs.existsSync(timelineUploadDir)) {
+  fs.mkdirSync(timelineUploadDir, { recursive: true });
 }
 
 // Filtro para aceitar apenas imagens
@@ -83,6 +88,18 @@ const feedbackStorage = multer.diskStorage({
   }
 });
 
+// Configuração do storage para timeline
+const timelineStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, timelineUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const hash = crypto.randomBytes(16).toString('hex');
+    const filename = `${hash}-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, filename);
+  }
+});
+
 // Configuração do Multer para treinadores
 export const treinadorUpload = multer({
   storage: treinadorStorage,
@@ -102,4 +119,13 @@ export const feedbackUpload = multer({
   }
 });
 
-export { clienteUploadDir, treinadorUploadDir, feedbackUploadDir };
+// Configuração do Multer para timeline (uma foto por entrada)
+export const timelineUpload = multer({
+  storage: timelineStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024
+  }
+});
+
+export { clienteUploadDir, treinadorUploadDir, feedbackUploadDir, timelineUploadDir };
