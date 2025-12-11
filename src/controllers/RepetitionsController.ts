@@ -352,6 +352,90 @@ class RepetitionsController {
     await knex(table).where({ id }).delete();
     return res.json({ message: 'Registro excluído com sucesso' });
   }
+
+  /**
+   * @swagger
+   * /repetitions/{type}/{id}/load:
+   *   patch:
+   *     summary: Atualizar somente a carga de uma repetição
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: type
+   *         required: true
+   *         schema:
+   *           type: string
+   *           enum: [reps-load, reps-load-time, complete-set]
+   *         description: Tipos que possuem campo de carga
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID da repetição
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [load]
+   *             properties:
+   *               load:
+   *                 type: number
+   *                 example: 55.5
+   *                 description: Nova carga (peso)
+   *     responses:
+   *       200:
+   *         description: Carga atualizada com sucesso
+   *       400:
+   *         description: Dados inválidos ou tipo sem carga
+   *       404:
+   *         description: Registro não encontrado
+   */
+  async updateLoad(req: Request, res: Response): Promise<Response> {
+    const { type, id } = req.params as { type: RepType; id: string };
+    const admin_id = req.headers.admin_id as string;
+    if (!type || !(type in TABLES)) throw new AppError('Invalid repetition type', 400);
+    if (!admin_id) throw new AppError('É necessário enviar o ID do admin', 400);
+
+    // Somente tipos com carga
+    const typesWithLoad: RepType[] = ['reps-load', 'reps-load-time', 'complete-set'];
+    if (!typesWithLoad.includes(type)) throw new AppError('Este tipo de repetição não possui carga', 400);
+
+    const { load } = req.body as any;
+    const newLoad = Number(load);
+    if (load === undefined || isNaN(newLoad)) throw new AppError('Campo load é obrigatório e deve ser numérico', 400);
+
+    const table = TABLES[type];
+
+    const exists = await knex(table)
+      .select(`${table}.*`)
+      .leftJoin('exercises', `${table}.exercise_id`, 'exercises.id')
+      .leftJoin('trainers', 'exercises.trainer_id', 'trainers.id')
+      .where({ [`${table}.id`]: id })
+      .andWhere(function() {
+        this.where('trainers.admin_id', admin_id).orWhereNull('exercises.trainer_id');
+      })
+      .first();
+
+    if (!exists) throw new AppError('Registro não encontrado', 404);
+
+    await knex(table)
+      .update({ load: newLoad })
+      .where({ id });
+
+    const updated = await knex(table).where({ id }).first();
+    return res.status(200).json({ message: 'Carga atualizada com sucesso', repetition: updated });
+  }
 }
 
 export default new RepetitionsController();
