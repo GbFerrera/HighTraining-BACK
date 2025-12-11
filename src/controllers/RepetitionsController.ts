@@ -436,6 +436,180 @@ class RepetitionsController {
     const updated = await knex(table).where({ id }).first();
     return res.status(200).json({ message: 'Carga atualizada com sucesso', repetition: updated });
   }
+
+  /**
+   * @swagger
+   * /repetitions/load-progress/student/{student_id}:
+   *   get:
+   *     summary: Evolução de carga dos exercícios do aluno
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: student_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: ID do aluno
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *       - in: query
+   *         name: exercise_id
+   *         schema:
+   *           type: integer
+   *         description: Filtrar por um exercício específico
+   *       - in: query
+   *         name: start_date
+   *         schema:
+   *           type: string
+   *           format: date
+   *       - in: query
+   *         name: end_date
+   *         schema:
+   *           type: string
+   *           format: date
+   *     responses:
+   *       200:
+   *         description: Série temporal de cargas por exercício
+   */
+  async loadProgressByStudent(req: Request, res: Response): Promise<Response> {
+    const { student_id } = req.params as any;
+    const admin_id = req.headers.admin_id as string;
+    const { exercise_id, start_date, end_date } = req.query as any;
+
+    if (!admin_id) throw new AppError('É necessário enviar o ID do admin', 400);
+    if (!student_id || isNaN(Number(student_id))) throw new AppError('ID do aluno inválido', 400);
+
+    const student = await knex('students').where({ id: student_id }).first();
+    if (!student) throw new AppError('Aluno não encontrado', 404);
+
+    let exercisesQuery = knex('exercise_trainings')
+      .select('exercise_trainings.exercise_id', 'exercises.name as exercise_name')
+      .leftJoin('routine_trainings', 'exercise_trainings.training_id', 'routine_trainings.training_id')
+      .leftJoin('training_routines', 'routine_trainings.routine_id', 'training_routines.id')
+      .leftJoin('exercises', 'exercise_trainings.exercise_id', 'exercises.id')
+      .where('training_routines.admin_id', admin_id)
+      .andWhere('training_routines.student_id', student_id);
+
+    if (exercise_id) exercisesQuery = exercisesQuery.andWhere('exercise_trainings.exercise_id', exercise_id);
+
+    const exercisesRows = await exercisesQuery.distinct();
+    const exerciseIds = exercisesRows.map((r: any) => r.exercise_id);
+
+    if (exerciseIds.length === 0) {
+      return res.json({ student_id: Number(student_id), exercises: [] });
+    }
+
+    const applyDateRange = (qb: any, alias: string) => {
+      if (start_date) qb = qb.andWhere(`${alias}.created_at`, '>=', start_date);
+      if (end_date) qb = qb.andWhere(`${alias}.created_at`, '<=', end_date);
+      return qb;
+    };
+
+    type ProgressRow = {
+      exercise_id: number;
+      set?: number | null;
+      reps?: number | null;
+      load?: number | null;
+      time?: number | null;
+      rest?: number | null;
+      created_at: string;
+    };
+
+    const repsLoad = await applyDateRange(
+      knex('rep_reps_load').select(
+        'rep_reps_load.id',
+        'rep_reps_load.exercise_id',
+        'rep_reps_load.set',
+        'rep_reps_load.reps',
+        'rep_reps_load.load',
+        'rep_reps_load.rest',
+        'rep_reps_load.created_at'
+      ).whereIn('rep_reps_load.exercise_id', exerciseIds),
+      'rep_reps_load'
+    ) as unknown as ProgressRow[];
+
+    const repsLoadTime = await applyDateRange(
+      knex('rep_reps_load_time').select(
+        'rep_reps_load_time.id',
+        'rep_reps_load_time.exercise_id',
+        knex.raw('NULL as set'),
+        'rep_reps_load_time.reps',
+        'rep_reps_load_time.load',
+        'rep_reps_load_time.time',
+        knex.raw('NULL as rest'),
+        'rep_reps_load_time.created_at'
+      ).whereIn('rep_reps_load_time.exercise_id', exerciseIds),
+      'rep_reps_load_time'
+    ) as unknown as ProgressRow[];
+
+    const completeSet = await applyDateRange(
+      knex('rep_complete_set').select(
+        'rep_complete_set.id',
+        'rep_complete_set.exercise_id',
+        'rep_complete_set.set',
+        'rep_complete_set.reps',
+        'rep_complete_set.load',
+        'rep_complete_set.time',
+        'rep_complete_set.rest',
+        'rep_complete_set.created_at'
+      ).whereIn('rep_complete_set.exercise_id', exerciseIds),
+      'rep_complete_set'
+    ) as unknown as ProgressRow[];
+
+    interface ExerciseProgressPoint {
+      type: 'reps-load' | 'reps-load-time' | 'complete-set';
+      set: number | null;
+      reps: number | null;
+      load: number | null;
+      time: number | null;
+      rest: number | null;
+      created_at: string;
+    }
+
+    interface ExerciseProgress {
+      exercise_id: number;
+      exercise_name: string;
+      progress: ExerciseProgressPoint[];
+    }
+
+    type ExerciseRow = { exercise_id: number; exercise_name: string };
+    const exercisesRowsTyped = exercisesRows as ExerciseRow[];
+
+    const byExercise: Record<number, ExerciseProgress> = {};
+    for (const row of exercisesRowsTyped) {
+      byExercise[row.exercise_id] = { exercise_id: row.exercise_id, exercise_name: row.exercise_name, progress: [] };
+    }
+
+    const push = (type: ExerciseProgressPoint['type'], r: ProgressRow) => {
+      const e = byExercise[r.exercise_id];
+      if (!e) return;
+      e.progress.push({
+        type,
+        set: (r.set ?? null) as number | null,
+        reps: (r.reps ?? null) as number | null,
+        load: (r.load ?? null) as number | null,
+        time: (r.time ?? null) as number | null,
+        rest: (r.rest ?? null) as number | null,
+        created_at: r.created_at,
+      });
+    };
+
+    repsLoad.forEach(r => push('reps-load', r));
+    repsLoadTime.forEach(r => push('reps-load-time', r));
+    completeSet.forEach(r => push('complete-set', r));
+
+    Object.values(byExercise).forEach((e: ExerciseProgress) => {
+      e.progress.sort((a: ExerciseProgressPoint, b: ExerciseProgressPoint) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    });
+
+    return res.json({ student_id: Number(student_id), exercises: Object.values(byExercise) });
+  }
 }
 
 export default new RepetitionsController();
