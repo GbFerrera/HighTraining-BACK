@@ -66,7 +66,7 @@ class ClientesController {
    *               $ref: '#/components/schemas/Error'
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, email, password, treinador_id, phone_number, date_of_birth, age, gender } = req.body as CreateClienteDTO;
+    const { name, email, password, trainer_id, phone_number, date_of_birth, age, gender } = req.body as CreateClienteDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -82,9 +82,9 @@ class ClientesController {
       throw new AppError("Admin não encontrado", 404);
     }
 
-    if (treinador_id) {
+    if (trainer_id) {
       const treinador = await knex("trainers")
-        .where({ id: treinador_id, admin_id })
+        .where({ id: trainer_id, admin_id })
         .first();
       
       if (!treinador) {
@@ -93,7 +93,7 @@ class ClientesController {
     }
 
     let emailUsed;
-    if (treinador_id) {
+    if (trainer_id) {
       emailUsed = await knex("students")
         .leftJoin("trainers", "students.trainer_id", "trainers.id")
         .where("students.email", email)
@@ -114,7 +114,7 @@ class ClientesController {
 
     const [cliente] = await knex("students")
       .insert({
-        trainer_id: treinador_id || null,
+        trainer_id: trainer_id || null,
         name,
         email,
         password: hashedPassword,
@@ -182,7 +182,7 @@ class ClientesController {
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;
-    const { term, treinador_id } = req.query as ClienteQueryParams;
+    const { term, trainer_id } = req.query as ClienteQueryParams;
 
     if (!admin_id) {
       throw new AppError("É necessário enviar o ID do admin", 400);
@@ -213,8 +213,8 @@ class ClientesController {
       });
     }
 
-    if (treinador_id) {
-      clientesQuery = clientesQuery.where("students.trainer_id", treinador_id);
+    if (trainer_id) {
+      clientesQuery = clientesQuery.where("students.trainer_id", trainer_id);
     }
 
     const clientes = await clientesQuery.orderBy("students.name", "asc");
@@ -352,7 +352,7 @@ class ClientesController {
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { name, email, password, treinador_id, phone_number, date_of_birth, age, gender } = req.body as UpdateClienteDTO;
+    const { name, email, password, trainer_id, phone_number, date_of_birth, age, gender } = req.body as UpdateClienteDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -372,8 +372,8 @@ class ClientesController {
     if (email && email !== cliente.email) {
       let existingClienteWithEmail;
       // Se houver treinador (atual ou novo), valida dentro do escopo do admin via JOIN
-      const scopeTreinadorId = treinador_id !== undefined ? treinador_id : cliente.trainer_id;
-      if (scopeTreinadorId) {
+      const scopeTrainerId = trainer_id !== undefined ? trainer_id : cliente.trainer_id;
+      if (scopeTrainerId) {
         existingClienteWithEmail = await knex("students")
           .leftJoin("trainers", "students.trainer_id", "trainers.id")
           .where("students.email", email)
@@ -393,9 +393,9 @@ class ClientesController {
       }
     }
 
-    if (treinador_id) {
+    if (trainer_id) {
       const treinador = await knex("trainers")
-        .where({ id: treinador_id, admin_id })
+        .where({ id: trainer_id, admin_id })
         .first();
       
       if (!treinador) {
@@ -406,7 +406,7 @@ class ClientesController {
     const updatedData: any = {
       name: name || cliente.name,
       email: email || cliente.email,
-      trainer_id: treinador_id !== undefined ? treinador_id : cliente.trainer_id,
+      trainer_id: trainer_id !== undefined ? trainer_id : cliente.trainer_id,
       phone_number: phone_number !== undefined ? phone_number : cliente.phone_number,
       date_of_birth: date_of_birth !== undefined ? date_of_birth : cliente.date_of_birth,
       age: age !== undefined ? age : cliente.age,

@@ -214,7 +214,7 @@ class TreinadorPhotosController {
    *     tags: [Trainer Photos]
    *     parameters:
    *       - in: path
-   *         name: treinador_id
+   *         name: trainer_id
    *         required: true
    *         schema:
    *           type: integer

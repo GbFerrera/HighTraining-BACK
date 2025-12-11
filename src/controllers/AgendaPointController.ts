@@ -37,18 +37,18 @@ class AgendaPointController {
    *                 type: string
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { cliente_id, training_date, duration_times, notes, day_week } = req.body;
+    const { student_id, training_date, duration_times, notes, day_week } = req.body;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) throw new AppError("O ID do admin é obrigatório", 400);
-    if (!cliente_id || !training_date) throw new AppError("ID do cliente e data do treino são obrigatórios", 400);
+    if (!student_id || !training_date) throw new AppError("ID do cliente e data do treino são obrigatórios", 400);
 
     const admin = await knex("admins").where({ id: admin_id }).first();
     if (!admin) throw new AppError("Admin não encontrado", 404);
 
     const cliente = await knex("students")
       .leftJoin("trainers", "students.trainer_id", "trainers.id")
-      .where({ "students.id": cliente_id })
+      .where({ "students.id": student_id })
       .andWhere("trainers.admin_id", admin_id)
       .first();
     if (!cliente) throw new AppError("Cliente não encontrado", 404);
@@ -56,7 +56,7 @@ class AgendaPointController {
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
 
     const [agendaPoint] = await knex("schedule_appointments")
-      .insert({ admin_id, student_id: cliente_id, training_date, duration_times: duration_times || null, notes: notes || null, day_week: day_week || null, created_at: now, updated_at: now })
+      .insert({ admin_id, student_id, training_date, duration_times: duration_times || null, notes: notes || null, day_week: day_week || null, created_at: now, updated_at: now })
       .returning(["id", "admin_id", "student_id", "training_date", "duration_times", "notes", "day_week", "created_at", "updated_at"]);
 
     return res.status(201).json(agendaPoint);
@@ -91,7 +91,7 @@ class AgendaPointController {
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;
-    const { cliente_id, start_date, end_date } = req.query as any;
+    const { student_id, start_date, end_date } = req.query as any;
 
     if (!admin_id) throw new AppError("É necessário enviar o ID do admin", 400);
 
@@ -100,7 +100,7 @@ class AgendaPointController {
       .leftJoin("students", "schedule_appointments.student_id", "students.id")
       .where("schedule_appointments.admin_id", admin_id);
 
-    if (cliente_id) query = query.where("schedule_appointments.student_id", cliente_id);
+    if (student_id) query = query.where("schedule_appointments.student_id", student_id);
     if (start_date) query = query.where("schedule_appointments.training_date", ">=", start_date);
     if (end_date) query = query.where("schedule_appointments.training_date", "<=", end_date);
 

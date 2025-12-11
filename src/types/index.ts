@@ -22,7 +22,7 @@ export interface Treinador {
 export interface Cliente {
   id: number;
   admin_id: number;
-  treinador_id?: number;
+  trainer_id?: number;
   name: string;
   email: string;
   password: string;
@@ -45,14 +45,14 @@ export interface Training {
 
 export interface ClientTraining {
   id: number;
-  cliente_id: number;
+  student_id: number;
   training_id: number;
   assigned_at: string;
 }
 
 export interface ClienteEstatistic {
   id: number;
-  cliente_id: number;
+  student_id: number;
   weight?: number;
   height?: number;
   body_fat?: number;
@@ -62,8 +62,8 @@ export interface ClienteEstatistic {
 
 export interface AgendaPoint {
   id: number;
-  cliente_id: number;
-  treinador_id?: number;
+  student_id: number;
+  trainer_id?: number;
   title: string;
   description?: string;
   scheduled_at: string;
@@ -99,7 +99,7 @@ export interface CreateClienteDTO {
   name: string;
   email: string;
   password: string;
-  treinador_id?: number;
+  trainer_id?: number;
   phone_number?: string;
   date_of_birth?: string;
   age?: number;
@@ -110,7 +110,7 @@ export interface UpdateClienteDTO {
   name?: string;
   email?: string;
   password?: string;
-  treinador_id?: number;
+  trainer_id?: number;
   phone_number?: string;
   date_of_birth?: string;
   age?: number;
@@ -180,7 +180,7 @@ export interface UpdateExerciseTrainingDTO {
 }
 
 export interface CreateClienteEstatisticDTO {
-  cliente_id: number;
+  student_id: number;
   weight?: number;
   height?: number;
   body_fat?: number;
@@ -188,8 +188,8 @@ export interface CreateClienteEstatisticDTO {
 }
 
 export interface CreateAgendaPointDTO {
-  cliente_id: number;
-  treinador_id?: number;
+  student_id: number;
+  trainer_id?: number;
   title: string;
   description?: string;
   scheduled_at: string;
@@ -205,7 +205,7 @@ export interface UpdateAgendaPointDTO {
 
 // Response Types
 export interface ClienteWithTreinador extends Omit<Cliente, 'password'> {
-  treinador_name?: string;
+  trainer_name?: string;
 }
 
 export interface AuthResponse {
@@ -216,7 +216,7 @@ export interface AuthResponse {
 // Query Params
 export interface ClienteQueryParams {
   term?: string;
-  treinador_id?: string;
+  trainer_id?: string;
 }
 
 export interface PaginationParams {

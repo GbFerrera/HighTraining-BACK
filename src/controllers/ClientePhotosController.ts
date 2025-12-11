@@ -185,7 +185,7 @@ class ClientePhotosController {
    *     tags: [Student Photos]
    *     parameters:
    *       - in: path
-   *         name: cliente_id
+   *         name: student_id
    *         required: true
    *         schema:
    *           type: integer

@@ -193,7 +193,7 @@ class SessionController {
     } else {
       // Campos específicos de Aluno
       userData.admin_id = 1; // Admin fixo
-      userData.treinador_id = null;
+      userData.trainer_id = null;
     }
 
     // Insere usuário

@@ -88,8 +88,7 @@ class ClienteEstatisticController {
    */
   async create(req: Request, res: Response): Promise<Response> {
     const { 
-      student_id: student_id_raw, 
-      cliente_id, 
+      student_id, 
       weight, 
       height, 
       muscle_mass_percentage, 
@@ -111,7 +110,6 @@ class ClienteEstatisticController {
     } = req.body;
     const admin_id = req.headers.admin_id as string;
 
-    const student_id = student_id_raw ?? cliente_id;
     if (!admin_id) throw new AppError("O ID do admin é obrigatório", 400);
     if (!student_id) throw new AppError("ID do cliente é obrigatório", 400);
 
@@ -438,7 +436,7 @@ class ClienteEstatisticController {
    *     tags: [Student Statistics]
    *     parameters:
    *       - in: path
-   *         name: cliente_id
+   *         name: student_id
    *         required: true
    *         schema:
    *           type: number
@@ -491,11 +489,10 @@ class ClienteEstatisticController {
    * /student-statistics/measures/{student_id}:
    *   get:
    *     summary: Get student's body measurements
-   *     tags: [Student Statistics]
    *     description: Returns all body measures organized by date
    *     parameters:
    *       - in: path
-   *         name: cliente_id
+   *         name: student_id
    *         required: true
    *         schema:
    *           type: number
