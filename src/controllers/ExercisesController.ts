@@ -112,7 +112,6 @@ class ExercisesController {
         image_url: image_url || null,
         favorites: favorites !== undefined ? favorites : false,
         created_at: now,
-        updated_at: now,
       })
       .returning([
         "id",
@@ -124,7 +123,6 @@ class ExercisesController {
         "image_url",
         "favorites",
         "created_at",
-        "updated_at",
       ]);
 
     return res.status(201).json(exercise);
@@ -196,7 +194,6 @@ class ExercisesController {
         "exercises.image_url",
         "exercises.favorites",
         "exercises.created_at",
-        "exercises.updated_at",
         "trainers.name as trainer_name"
       )
       .leftJoin("trainers", "exercises.trainer_id", "trainers.id")
@@ -263,7 +260,6 @@ class ExercisesController {
         "exercises.image_url",
         "exercises.favorites",
         "exercises.created_at",
-        "exercises.updated_at",
         "trainers.name as trainer_name"
       )
       .leftJoin("trainers", "exercises.trainer_id", "trainers.id")
@@ -358,7 +354,6 @@ class ExercisesController {
         video_url: video_url !== undefined ? video_url : exercise.video_url,
         image_url: image_url !== undefined ? image_url : exercise.image_url,
         favorites: favorites !== undefined ? favorites : exercise.favorites,
-        updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
       };
 
       console.log('Updated data:', updatedData);
@@ -376,7 +371,6 @@ class ExercisesController {
           "exercises.image_url",
           "exercises.favorites",
           "exercises.created_at",
-          "exercises.updated_at",
           "trainers.name as trainer_name"
         )
         .leftJoin("trainers", "exercises.trainer_id", "trainers.id")
