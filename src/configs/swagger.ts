@@ -106,6 +106,7 @@ const options: swaggerJsdoc.Options = {
             admin_id: { type: 'number', example: 1 },
             name: { type: 'string', example: 'Treino A - Peito e Tríceps' },
             description: { type: 'string', nullable: true, example: 'Treino focado em peito e tríceps' },
+            is_library: { type: 'boolean', example: true },
             created_at: { type: 'string', format: 'date-time' },
             updated_at: { type: 'string', format: 'date-time' },
           },
@@ -120,6 +121,30 @@ const options: swaggerJsdoc.Options = {
             muscle_group: { type: 'string', nullable: true, example: 'Peito' },
             created_at: { type: 'string', format: 'date-time' },
             updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+        ExerciseTrainingPreset: {
+          type: 'object',
+          properties: {
+            rep_type: { type: 'string', enum: ['reps-load','reps-load-time','complete-set','reps-time'] },
+            default_load: { type: 'number' },
+            default_set: { type: 'number' },
+            default_reps: { type: 'number' },
+            default_time: { type: 'number' },
+            default_rest: { type: 'number' },
+          },
+        },
+        AssignedExerciseSetting: {
+          type: 'object',
+          properties: {
+            routine_training_id: { type: 'number' },
+            exercise_id: { type: 'number' },
+            rep_type: { type: 'string', enum: ['reps-load','reps-load-time','complete-set','reps-time'] },
+            load: { type: 'number' },
+            set: { type: 'number' },
+            reps: { type: 'number' },
+            time: { type: 'number' },
+            rest: { type: 'number' },
           },
         },
         ClienteEstatistic: {

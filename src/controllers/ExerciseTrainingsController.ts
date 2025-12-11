@@ -12,6 +12,12 @@ interface CreateExerciseTrainingDTO {
   rest_time?: number;
   order?: number;
   notes?: string;
+  rep_type?: 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time';
+  default_load?: number;
+  default_set?: number;
+  default_reps?: number;
+  default_time?: number;
+  default_rest?: number;
 }
 
 interface ExerciseTrainingQueryParams {
@@ -52,7 +58,7 @@ class ExerciseTrainingsController {
    *         description: Link created
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { training_id, exercise_id, video_url, sets, reps, rest_time, order, notes } = req.body as CreateExerciseTrainingDTO;
+    const { training_id, exercise_id, video_url, sets, reps, rest_time, order, notes, rep_type, default_load, default_set, default_reps, default_time, default_rest } = req.body as CreateExerciseTrainingDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -111,6 +117,12 @@ class ExerciseTrainingsController {
         rest_time: rest_time || null,
         order: order || null,
         notes: notes || null,
+        rep_type: rep_type || null,
+        default_load: default_load ?? null,
+        default_set: default_set ?? null,
+        default_reps: default_reps ?? null,
+        default_time: default_time ?? null,
+        default_rest: default_rest ?? null,
         created_at: now,
         updated_at: now,
       })
@@ -125,6 +137,12 @@ class ExerciseTrainingsController {
         "rest_time",
         "order",
         "notes",
+        "rep_type",
+        "default_load",
+        "default_set",
+        "default_reps",
+        "default_time",
+        "default_rest",
         "created_at",
         "updated_at",
       ]);
@@ -176,6 +194,12 @@ class ExerciseTrainingsController {
         "exercise_trainings.rest_time",
         "exercise_trainings.order",
         "exercise_trainings.notes",
+        "exercise_trainings.rep_type",
+        "exercise_trainings.default_load",
+        "exercise_trainings.default_set",
+        "exercise_trainings.default_reps",
+        "exercise_trainings.default_time",
+        "exercise_trainings.default_rest",
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "trainings.name as training_name",
@@ -351,6 +375,12 @@ class ExerciseTrainingsController {
         "exercise_trainings.rest_time",
         "exercise_trainings.order",
         "exercise_trainings.notes",
+        "exercise_trainings.rep_type",
+        "exercise_trainings.default_load",
+        "exercise_trainings.default_set",
+        "exercise_trainings.default_reps",
+        "exercise_trainings.default_time",
+        "exercise_trainings.default_rest",
         "exercise_trainings.created_at",
         "exercise_trainings.updated_at",
         "exercises.name as exercise_name",

@@ -9,6 +9,15 @@ interface CreateRoutineTrainingDTO {
   order?: number;
   is_active?: boolean;
   notes?: string;
+  exercise_settings?: Array<{
+    exercise_id: number;
+    rep_type?: 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time';
+    load?: number;
+    set?: number;
+    reps?: number;
+    time?: number;
+    rest?: number;
+  }>;
 }
 
 class RoutineTrainingsController {
@@ -45,7 +54,7 @@ class RoutineTrainingsController {
    */
   async create(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;
-    const { routine_id, training_id, order, is_active, notes } = req.body as CreateRoutineTrainingDTO;
+    const { routine_id, training_id, order, is_active, notes, exercise_settings } = req.body as CreateRoutineTrainingDTO;
 
     if (!admin_id) throw new AppError('O ID do admin é obrigatório', 400);
     if (!routine_id || !training_id) {
@@ -87,6 +96,40 @@ class RoutineTrainingsController {
         updated_at: now,
       })
       .returning('*');
+
+    if (Array.isArray(exercise_settings) && exercise_settings.length > 0) {
+      for (const s of exercise_settings) {
+        if (!s.exercise_id) continue;
+        const existsExerciseInTraining = await knex('exercise_trainings')
+          .where({ training_id, exercise_id: s.exercise_id })
+          .first();
+        if (!existsExerciseInTraining) continue;
+
+        const payload: any = {
+          routine_training_id: routineTraining.id,
+          exercise_id: s.exercise_id,
+          rep_type: s.rep_type || null,
+          load: s.load ?? null,
+          set: s.set ?? null,
+          reps: s.reps ?? null,
+          time: s.time ?? null,
+          rest: s.rest ?? null,
+          created_at: now,
+          updated_at: now,
+        };
+
+        const existingSetting = await knex('assigned_exercise_settings')
+          .where({ routine_training_id: routineTraining.id, exercise_id: s.exercise_id })
+          .first();
+        if (existingSetting) {
+          await knex('assigned_exercise_settings')
+            .update(payload)
+            .where({ id: existingSetting.id });
+        } else {
+          await knex('assigned_exercise_settings').insert(payload);
+        }
+      }
+    }
 
     return res.status(201).json(routineTraining);
   }
@@ -167,6 +210,64 @@ class RoutineTrainingsController {
 
     if (!row) throw new AppError('Registro não encontrado', 404);
     return res.json(row);
+  }
+
+  /**
+   * @swagger
+   * /routine-trainings/{id}/resolved-exercises:
+   *   get:
+   *     summary: Lista de exercícios do treino com presets e overrides do aluno
+   *     tags: [RoutineTrainings]
+   */
+  async resolvedExercises(req: Request, res: Response): Promise<Response> {
+    const admin_id = req.headers.admin_id as string;
+    const { id } = req.params;
+
+    if (!admin_id || !id) throw new AppError('É necessário enviar os IDs', 400);
+
+    const rt = await knex('routine_trainings')
+      .leftJoin('training_routines', 'routine_trainings.routine_id', 'training_routines.id')
+      .where({ 'routine_trainings.id': id })
+      .andWhere('training_routines.admin_id', admin_id)
+      .first();
+    if (!rt) throw new AppError('Registro não encontrado', 404);
+
+    const rows = await knex('exercise_trainings')
+      .select(
+        'exercise_trainings.exercise_id',
+        'exercises.name as exercise_name',
+        'exercise_trainings.rep_type as preset_rep_type',
+        'exercise_trainings.default_load as preset_load',
+        'exercise_trainings.default_set as preset_set',
+        'exercise_trainings.default_reps as preset_reps',
+        'exercise_trainings.default_time as preset_time',
+        'exercise_trainings.default_rest as preset_rest',
+        'assigned_exercise_settings.rep_type as override_rep_type',
+        'assigned_exercise_settings.load as override_load',
+        'assigned_exercise_settings.set as override_set',
+        'assigned_exercise_settings.reps as override_reps',
+        'assigned_exercise_settings.time as override_time',
+        'assigned_exercise_settings.rest as override_rest'
+      )
+      .leftJoin('exercises', 'exercise_trainings.exercise_id', 'exercises.id')
+      .leftJoin('assigned_exercise_settings', function() {
+        this.on('assigned_exercise_settings.exercise_id', '=', 'exercise_trainings.exercise_id')
+          .andOn('assigned_exercise_settings.routine_training_id', '=', knex.raw('?', [id]));
+      })
+      .where({ 'exercise_trainings.training_id': rt.training_id });
+
+    const resolved = rows.map(r => ({
+      exercise_id: r.exercise_id,
+      exercise_name: r.exercise_name,
+      rep_type: r.override_rep_type ?? r.preset_rep_type ?? null,
+      load: r.override_load ?? r.preset_load ?? null,
+      set: r.override_set ?? r.preset_set ?? null,
+      reps: r.override_reps ?? r.preset_reps ?? null,
+      time: r.override_time ?? r.preset_time ?? null,
+      rest: r.override_rest ?? r.preset_rest ?? null,
+    }));
+
+    return res.json(resolved);
   }
 
   /**

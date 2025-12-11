@@ -8,6 +8,7 @@ interface CreateTrainingDTO {
   notes?: string;
   day_of_week?: string;
   trainer_id: number;
+  is_library?: boolean;
 }
 
 interface UpdateTrainingDTO {
@@ -20,6 +21,7 @@ interface UpdateTrainingDTO {
 interface TrainingQueryParams {
   term?: string;
   trainer_id?: string;
+  is_library?: string;
 }
 
 class TrainingsController {
@@ -52,7 +54,7 @@ class TrainingsController {
    *         description: Treino criado com sucesso
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, notes, day_of_week, trainer_id } = req.body as CreateTrainingDTO;
+    const { name, notes, day_of_week, trainer_id, is_library } = req.body as CreateTrainingDTO;
     const admin_id = req.headers.admin_id as string || '1';
 
     if (!name) {
@@ -79,6 +81,7 @@ class TrainingsController {
         name,
         day_of_week: day_of_week || null,
         notes: notes || null,
+        is_library: is_library !== undefined ? is_library : false,
         created_at: now,
         updated_at: now,
       })
@@ -90,6 +93,7 @@ class TrainingsController {
         "notes",
         "created_at",
         "updated_at",
+        "is_library",
       ]);
 
     return res.status(201).json(training);
@@ -116,7 +120,7 @@ class TrainingsController {
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string || '1';
-    const { term, trainer_id } = req.query as TrainingQueryParams;
+    const { term, trainer_id, is_library } = req.query as TrainingQueryParams;
 
     let trainingsQuery = knex("trainings")
       .select(
@@ -134,6 +138,11 @@ class TrainingsController {
 
     if (trainer_id) {
       trainingsQuery = trainingsQuery.where("trainings.trainer_id", trainer_id);
+    }
+
+    if (is_library !== undefined) {
+      const flag = is_library === 'true' ? true : is_library === 'false' ? false : undefined;
+      if (flag !== undefined) trainingsQuery = trainingsQuery.where("trainings.is_library", flag);
     }
 
     if (term) {
@@ -179,6 +188,7 @@ class TrainingsController {
         "trainings.name",
         "trainings.day_of_week",
         "trainings.notes",
+        "trainings.is_library",
         "trainings.created_at",
         "trainings.updated_at",
         "trainers.name as trainer_name"
