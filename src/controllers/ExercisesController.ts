@@ -3,13 +3,17 @@ import moment from 'moment-timezone';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
 
-type RepType = 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time';
+type RepType = 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time' | 'cadence' | 'notes' | 'running' | 'time-incline';
 
 const TABLES: Record<RepType, string> = {
   'reps-load': 'rep_reps_load',
   'reps-load-time': 'rep_reps_load_time',
   'complete-set': 'rep_complete_set',
   'reps-time': 'rep_reps_time',
+  'cadence': 'rep_cadence',
+  'notes': 'rep_notes',
+  'running': 'rep_running',
+  'time-incline': 'rep_time_incline',
 };
 
 interface RepetitionData {
@@ -119,7 +123,7 @@ class ExercisesController {
       }
     }
 
-    const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
+    const now = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD HH:mm:ss');
 
     const [exercise] = await knex("exercises")
       .insert({
@@ -156,37 +160,103 @@ class ExercisesController {
       const table = TABLES[type];
       let payload: any = { exercise_id: exercise.id, created_at: now };
 
+      // Função para converter para número ou null
+      const toNumberOrNull = (value: any) => {
+        if (value === undefined || value === null || value === '') return null;
+        const num = Number(value);
+        return isNaN(num) ? null : num;
+      };
+
+      // Função para validar número obrigatório
+      const validateRequiredNumber = (value: any, fieldName: string) => {
+        const num = toNumberOrNull(value);
+        if (num === null) {
+          throw new AppError(`Campo ${fieldName} deve ser um número válido`, 400);
+        }
+        return num;
+      };
+
       switch (type) {
         case 'reps-load': {
           const { set, reps, load, rest } = data;
-          if ([set, reps, load, rest].some((v: any) => v === undefined)) {
-            throw new AppError('Campos obrigatórios para reps-load: set, reps, load, rest', 400);
-          }
-          payload = { ...payload, set: Number(set), reps: Number(reps), load: Number(load), rest: Number(rest) };
+          payload = { 
+            ...payload, 
+            set: validateRequiredNumber(set, 'set'),
+            reps: validateRequiredNumber(reps, 'reps'),
+            load: validateRequiredNumber(load, 'load'),
+            rest: validateRequiredNumber(rest, 'rest')
+          };
           break;
         }
         case 'reps-load-time': {
           const { reps, load, time } = data;
-          if ([reps, load, time].some((v: any) => v === undefined)) {
-            throw new AppError('Campos obrigatórios para reps-load-time: reps, load, time', 400);
-          }
-          payload = { ...payload, reps: Number(reps), load: Number(load), time: Number(time) };
+          payload = { 
+            ...payload, 
+            reps: validateRequiredNumber(reps, 'reps'),
+            load: validateRequiredNumber(load, 'load'),
+            time: validateRequiredNumber(time, 'time')
+          };
           break;
         }
         case 'complete-set': {
           const { set, reps, load, time, rest } = data;
-          if ([set, reps, load, time, rest].some((v: any) => v === undefined)) {
-            throw new AppError('Campos obrigatórios para complete-set: set, reps, load, time, rest', 400);
-          }
-          payload = { ...payload, set: Number(set), reps: Number(reps), load: Number(load), time: Number(time), rest: Number(rest) };
+          payload = { 
+            ...payload, 
+            set: validateRequiredNumber(set, 'set'),
+            reps: validateRequiredNumber(reps, 'reps'),
+            load: validateRequiredNumber(load, 'load'),
+            time: validateRequiredNumber(time, 'time'),
+            rest: validateRequiredNumber(rest, 'rest')
+          };
           break;
         }
         case 'reps-time': {
           const { set, reps, time, rest } = data;
-          if ([set, reps, time, rest].some((v: any) => v === undefined)) {
-            throw new AppError('Campos obrigatórios para reps-time: set, reps, time, rest', 400);
+          payload = { 
+            ...payload, 
+            set: validateRequiredNumber(set, 'set'),
+            reps: validateRequiredNumber(reps, 'reps'),
+            time: validateRequiredNumber(time, 'time'),
+            rest: validateRequiredNumber(rest, 'rest')
+          };
+          break;
+        }
+        case 'cadence': {
+          const { cadence } = data;
+          if (!cadence) {
+            throw new AppError('Campo obrigatório para cadence: cadence', 400);
           }
-          payload = { ...payload, set: Number(set), reps: Number(reps), time: Number(time), rest: Number(rest) };
+          payload = { ...payload, cadence: String(cadence) };
+          break;
+        }
+        case 'notes': {
+          const { notes } = data;
+          if (!notes) {
+            throw new AppError('Campo obrigatório para notes: notes', 400);
+          }
+          payload = { ...payload, notes: String(notes) };
+          break;
+        }
+        case 'running': {
+          const { speed, distance, time, pace, rest } = data;
+          payload = { 
+            ...payload, 
+            speed: toNumberOrNull(speed),
+            distance: toNumberOrNull(distance),
+            time: toNumberOrNull(time),
+            pace: pace && pace !== '' ? String(pace) : null,
+            rest: validateRequiredNumber(rest, 'rest')
+          };
+          break;
+        }
+        case 'time-incline': {
+          const { time, incline, rest } = data;
+          payload = { 
+            ...payload, 
+            time: validateRequiredNumber(time, 'time'),
+            incline: validateRequiredNumber(incline, 'incline'),
+            rest: validateRequiredNumber(rest, 'rest')
+          };
           break;
         }
       }

@@ -3,14 +3,57 @@ import moment from 'moment-timezone';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
 
-type RepType = 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time';
+type RepType = 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time' | 'cadence' | 'notes' | 'running' | 'time-incline';
 
 const TABLES: Record<RepType, string> = {
   'reps-load': 'rep_reps_load',
   'reps-load-time': 'rep_reps_load_time',
   'complete-set': 'rep_complete_set',
   'reps-time': 'rep_reps_time',
+  'cadence': 'rep_cadence',
+  'notes': 'rep_notes',
+  'running': 'rep_running',
+  'time-incline': 'rep_time_incline',
 };
+
+// Mapping exercise names/categories to repetition types
+const EXERCISE_TYPE_MAPPING: Record<string, RepType> = {
+  // Running exercises
+  'corrida': 'running',
+  'caminhada': 'running',
+  'esteira': 'running',
+  'cooper': 'running',
+  
+  // Cadence exercises
+  'cadencia': 'cadence',
+  'ritmo': 'cadence',
+  
+  // Time-incline exercises (treadmill with incline)
+  'inclinacao': 'time-incline',
+  'subida': 'time-incline',
+  
+  // Notes exercises (stretching, warm-up, etc.)
+  'alongamento': 'notes',
+  'aquecimento': 'notes',
+  'observacao': 'notes',
+  'anotacao': 'notes',
+};
+
+// Function to determine repetition type based on exercise
+function getRepetitionTypeForExercise(exerciseName: string, category?: string): RepType {
+  const name = (exerciseName || '').toLowerCase();
+  const cat = (category || '').toLowerCase();
+  
+  // Check exercise name first
+  for (const [keyword, type] of Object.entries(EXERCISE_TYPE_MAPPING)) {
+    if (name.includes(keyword) || cat.includes(keyword)) {
+      return type;
+    }
+  }
+  
+  // Default to reps-load for traditional weight exercises
+  return 'reps-load';
+}
 
 class RepetitionsController {
   /**
@@ -27,7 +70,7 @@ class RepetitionsController {
    *         required: true
    *         schema:
    *           type: string
-   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time, cadence, notes, running, time-incline]
    *         description: Tipo de repetição
    *       - in: header
    *         name: admin_id
@@ -174,6 +217,37 @@ class RepetitionsController {
         payload = { ...payload, set: Number(set), reps: Number(reps), time: Number(time), rest: Number(rest) };
         break;
       }
+      case 'cadence': {
+        const { cadence } = body;
+        if (!cadence) throw new AppError('Campo obrigatório: cadence', 400);
+        payload = { ...payload, cadence: String(cadence) };
+        break;
+      }
+      case 'notes': {
+        const { notes } = body;
+        if (!notes) throw new AppError('Campo obrigatório: notes', 400);
+        payload = { ...payload, notes: String(notes) };
+        break;
+      }
+      case 'running': {
+        const { speed, distance, time, pace, rest } = body;
+        if (rest === undefined) throw new AppError('Campo obrigatório: rest', 400);
+        payload = { 
+          ...payload, 
+          speed: speed ? Number(speed) : null,
+          distance: distance ? Number(distance) : null,
+          time: time ? Number(time) : null,
+          pace: pace ? String(pace) : null,
+          rest: Number(rest)
+        };
+        break;
+      }
+      case 'time-incline': {
+        const { time, incline, rest } = body;
+        if ([time, incline, rest].some((v: any) => v === undefined)) throw new AppError('Campos obrigatórios: time, incline, rest', 400);
+        payload = { ...payload, time: Number(time), incline: Number(incline), rest: Number(rest) };
+        break;
+      }
     }
 
     const [row] = await knex(table).insert(payload).returning('*');
@@ -194,7 +268,7 @@ class RepetitionsController {
    *         required: true
    *         schema:
    *           type: string
-   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time, cadence, notes, running, time-incline]
    *         description: Tipo de repetição
    *       - in: header
    *         name: admin_id
@@ -250,7 +324,7 @@ class RepetitionsController {
    *         required: true
    *         schema:
    *           type: string
-   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time, cadence, notes, running, time-incline]
    *         description: Tipo de repetição
    *       - in: path
    *         name: id
@@ -308,7 +382,7 @@ class RepetitionsController {
    *         required: true
    *         schema:
    *           type: string
-   *           enum: [reps-load, reps-load-time, complete-set, reps-time]
+   *           enum: [reps-load, reps-load-time, complete-set, reps-time, cadence, notes, running, time-incline]
    *         description: Tipo de repetição
    *       - in: path
    *         name: id
@@ -435,6 +509,178 @@ class RepetitionsController {
 
     const updated = await knex(table).where({ id }).first();
     return res.status(200).json({ message: 'Carga atualizada com sucesso', repetition: updated });
+  }
+
+  /**
+   * @swagger
+   * /repetitions/exercise/{exercise_id}:
+   *   get:
+   *     summary: Buscar todas as repetições de um exercício específico
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: exercise_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: ID do exercício
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     responses:
+   *       200:
+   *         description: Repetições encontradas para o exercício
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 exercise_id:
+   *                   type: integer
+   *                 repetitions:
+   *                   type: array
+   *                   items:
+   *                     type: object
+   *       404:
+   *         description: Exercício não encontrado
+   */
+  async getByExercise(req: Request, res: Response): Promise<Response> {
+    const { exercise_id } = req.params;
+    const admin_id = req.headers.admin_id as string;
+    
+    if (!admin_id) throw new AppError('É necessário enviar o ID do admin', 400);
+    if (!exercise_id || isNaN(Number(exercise_id))) throw new AppError('ID do exercício inválido', 400);
+
+    // Verificar se o exercício existe e pertence ao admin
+    const exercise = await knex('exercises')
+      .leftJoin('trainers', 'exercises.trainer_id', 'trainers.id')
+      .where({ 'exercises.id': exercise_id })
+      .andWhere(function() {
+        this.where('trainers.admin_id', admin_id).orWhereNull('exercises.trainer_id');
+      })
+      .first();
+      
+    if (!exercise) throw new AppError('Exercício não encontrado', 404);
+
+    // Buscar repetições em todas as tabelas
+    const allRepetitions: any[] = [];
+
+    // Buscar em rep_reps_load
+    const repsLoad = await knex('rep_reps_load')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    repsLoad.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'reps-load',
+        formatted: `${rep.set}x ${rep.reps} - ${rep.load}kg - ${rep.rest}s descanso`
+      });
+    });
+
+    // Buscar em rep_reps_load_time
+    const repsLoadTime = await knex('rep_reps_load_time')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    repsLoadTime.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'reps-load-time',
+        formatted: `${rep.reps} reps - ${rep.load}kg - ${rep.time}s`
+      });
+    });
+
+    // Buscar em rep_complete_set
+    const completeSet = await knex('rep_complete_set')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    completeSet.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'complete-set',
+        formatted: `${rep.set}x ${rep.reps} - ${rep.load}kg - ${rep.time}s - ${rep.rest}s descanso`
+      });
+    });
+
+    // Buscar em rep_reps_time
+    const repsTime = await knex('rep_reps_time')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    repsTime.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'reps-time',
+        formatted: `${rep.set}x ${rep.reps} - ${rep.time}s - ${rep.rest}s descanso`
+      });
+    });
+
+    // Buscar em rep_cadence
+    const cadence = await knex('rep_cadence')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    cadence.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'cadence',
+        formatted: `Cadência: ${rep.cadence}`
+      });
+    });
+
+    // Buscar em rep_notes
+    const notes = await knex('rep_notes')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    notes.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'notes',
+        formatted: `Observações: ${rep.notes.substring(0, 50)}${rep.notes.length > 50 ? '...' : ''}`
+      });
+    });
+
+    // Buscar em rep_running
+    const running = await knex('rep_running')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    running.forEach(rep => {
+      const parts = [];
+      if (rep.speed) parts.push(`${rep.speed}km/h`);
+      if (rep.distance) parts.push(`${rep.distance}m`);
+      if (rep.time) parts.push(`${rep.time}s`);
+      if (rep.pace) parts.push(`pace ${rep.pace}`);
+      parts.push(`${rep.rest}s descanso`);
+      
+      allRepetitions.push({
+        ...rep,
+        type: 'running',
+        formatted: `Corrida: ${parts.join(' - ')}`
+      });
+    });
+
+    // Buscar em rep_time_incline
+    const timeIncline = await knex('rep_time_incline')
+      .where({ exercise_id })
+      .orderBy('created_at', 'desc');
+    timeIncline.forEach(rep => {
+      allRepetitions.push({
+        ...rep,
+        type: 'time-incline',
+        formatted: `${rep.time}s - ${rep.incline}% inclinação - ${rep.rest}s descanso`
+      });
+    });
+
+    // Ordenar todas as repetições por data de criação (mais recente primeiro)
+    allRepetitions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return res.json({
+      exercise_id: Number(exercise_id),
+      exercise_name: exercise.name,
+      repetitions: allRepetitions
+    });
   }
 
   /**
@@ -609,6 +855,495 @@ class RepetitionsController {
     });
 
     return res.json({ student_id: Number(student_id), exercises: Object.values(byExercise) });
+  }
+
+  /**
+   * @swagger
+   * /repetitions/auto/{exercise_id}:
+   *   post:
+   *     summary: Criar repetição automaticamente baseada no tipo do exercício
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: exercise_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *         description: ID do exercício
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             description: Campos variam baseado no tipo do exercício
+   *     responses:
+   *       201:
+   *         description: Repetição criada com sucesso
+   *       400:
+   *         description: Dados inválidos
+   *       404:
+   *         description: Exercício não encontrado
+   */
+  async createAuto(req: Request, res: Response): Promise<Response> {
+    const { exercise_id } = req.params;
+    const admin_id = req.headers.admin_id as string;
+    
+    if (!admin_id) throw new AppError('O ID do admin é obrigatório', 400);
+    if (!exercise_id || isNaN(Number(exercise_id))) throw new AppError('ID do exercício inválido', 400);
+
+    // Buscar o exercício para determinar o tipo
+    const exercise = await knex('exercises')
+      .leftJoin('trainers', 'exercises.trainer_id', 'trainers.id')
+      .where({ 'exercises.id': exercise_id })
+      .andWhere(function() {
+        this.where('trainers.admin_id', admin_id).orWhereNull('exercises.trainer_id');
+      })
+      .first();
+      
+    if (!exercise) throw new AppError('Exercício não encontrado', 404);
+
+    // Determinar o tipo de repetição baseado no exercício
+    const repType = getRepetitionTypeForExercise(exercise.name, exercise.category);
+    
+    // Criar a repetição usando o tipo determinado
+    const body = { ...req.body, exercise_id: Number(exercise_id) };
+    const now = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD HH:mm:ss');
+    const table = TABLES[repType];
+    let payload: any = { exercise_id: Number(exercise_id), created_at: now };
+
+    switch (repType) {
+      case 'reps-load': {
+        const { set, reps, load, rest } = body;
+        if ([set, reps, load, rest].some((v: any) => v === undefined)) throw new AppError('Campos obrigatórios: set, reps, load, rest', 400);
+        payload = { ...payload, set: Number(set), reps: Number(reps), load: Number(load), rest: Number(rest) };
+        break;
+      }
+      case 'reps-load-time': {
+        const { reps, load, time } = body;
+        if ([reps, load, time].some((v: any) => v === undefined)) throw new AppError('Campos obrigatórios: reps, load, time', 400);
+        payload = { ...payload, reps: Number(reps), load: Number(load), time: Number(time) };
+        break;
+      }
+      case 'complete-set': {
+        const { set, reps, load, time, rest } = body;
+        if ([set, reps, load, time, rest].some((v: any) => v === undefined)) throw new AppError('Campos obrigatórios: set, reps, load, time, rest', 400);
+        payload = { ...payload, set: Number(set), reps: Number(reps), load: Number(load), time: Number(time), rest: Number(rest) };
+        break;
+      }
+      case 'reps-time': {
+        const { set, reps, time, rest } = body;
+        if ([set, reps, time, rest].some((v: any) => v === undefined)) throw new AppError('Campos obrigatórios: set, reps, time, rest', 400);
+        payload = { ...payload, set: Number(set), reps: Number(reps), time: Number(time), rest: Number(rest) };
+        break;
+      }
+      case 'cadence': {
+        const { cadence } = body;
+        if (!cadence) throw new AppError('Campo obrigatório: cadence', 400);
+        payload = { ...payload, cadence: String(cadence) };
+        break;
+      }
+      case 'notes': {
+        const { notes } = body;
+        if (!notes) throw new AppError('Campo obrigatório: notes', 400);
+        payload = { ...payload, notes: String(notes) };
+        break;
+      }
+      case 'running': {
+        const { speed, distance, time, pace, rest } = body;
+        if (rest === undefined) throw new AppError('Campo obrigatório: rest', 400);
+        payload = { 
+          ...payload, 
+          speed: speed ? Number(speed) : null,
+          distance: distance ? Number(distance) : null,
+          time: time ? Number(time) : null,
+          pace: pace ? String(pace) : null,
+          rest: Number(rest)
+        };
+        break;
+      }
+      case 'time-incline': {
+        const { time, incline, rest } = body;
+        if ([time, incline, rest].some((v: any) => v === undefined)) throw new AppError('Campos obrigatórios: time, incline, rest', 400);
+        payload = { ...payload, time: Number(time), incline: Number(incline), rest: Number(rest) };
+        break;
+      }
+    }
+
+    const [row] = await knex(table).insert(payload).returning('*');
+    return res.status(201).json({ 
+      ...row, 
+      type: repType,
+      message: `Repetição criada automaticamente como tipo: ${repType}` 
+    });
+  }
+
+  // Métodos específicos para cada tipo de repetição
+  
+  /**
+   * @swagger
+   * /repetitions/running:
+   *   post:
+   *     summary: Criar repetição de corrida
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, rest]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               speed:
+   *                 type: number
+   *                 example: 10.5
+   *               distance:
+   *                 type: number
+   *                 example: 5000
+   *               time:
+   *                 type: number
+   *                 example: 1800
+   *               pace:
+   *                 type: string
+   *                 example: "5:30"
+   *               rest:
+   *                 type: number
+   *                 example: 120
+   *     responses:
+   *       201:
+   *         description: Repetição de corrida criada com sucesso
+   */
+  async createRunning(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'running';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/cadence:
+   *   post:
+   *     summary: Criar repetição de cadência
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, cadence]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               cadence:
+   *                 type: string
+   *                 example: "2-1-2-1"
+   *     responses:
+   *       201:
+   *         description: Repetição de cadência criada com sucesso
+   */
+  async createCadence(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'cadence';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/notes:
+   *   post:
+   *     summary: Criar repetição com observações
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, notes]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               notes:
+   *                 type: string
+   *                 example: "Observações sobre o exercício"
+   *     responses:
+   *       201:
+   *         description: Repetição com observações criada com sucesso
+   */
+  async createNotes(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'notes';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/time-incline:
+   *   post:
+   *     summary: Criar repetição tempo-inclinação
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, time, incline, rest]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               time:
+   *                 type: number
+   *                 example: 600
+   *               incline:
+   *                 type: number
+   *                 example: 5.5
+   *               rest:
+   *                 type: number
+   *                 example: 60
+   *     responses:
+   *       201:
+   *         description: Repetição tempo-inclinação criada com sucesso
+   */
+  async createTimeIncline(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'time-incline';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/reps-load:
+   *   post:
+   *     summary: Criar repetição reps-load
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, set, reps, load, rest]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               set:
+   *                 type: number
+   *                 example: 3
+   *               reps:
+   *                 type: number
+   *                 example: 12
+   *               load:
+   *                 type: number
+   *                 example: 50
+   *               rest:
+   *                 type: number
+   *                 example: 60
+   *     responses:
+   *       201:
+   *         description: Repetição reps-load criada com sucesso
+   */
+  async createRepsLoad(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'reps-load';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/reps-load-time:
+   *   post:
+   *     summary: Criar repetição reps-load-time
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, reps, load, time]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               reps:
+   *                 type: number
+   *                 example: 12
+   *               load:
+   *                 type: number
+   *                 example: 50
+   *               time:
+   *                 type: number
+   *                 example: 30
+   *     responses:
+   *       201:
+   *         description: Repetição reps-load-time criada com sucesso
+   */
+  async createRepsLoadTime(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'reps-load-time';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/complete-set:
+   *   post:
+   *     summary: Criar repetição complete-set
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, set, reps, load, time, rest]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               set:
+   *                 type: number
+   *                 example: 3
+   *               reps:
+   *                 type: number
+   *                 example: 12
+   *               load:
+   *                 type: number
+   *                 example: 50
+   *               time:
+   *                 type: number
+   *                 example: 30
+   *               rest:
+   *                 type: number
+   *                 example: 60
+   *     responses:
+   *       201:
+   *         description: Repetição complete-set criada com sucesso
+   */
+  async createCompleteSet(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'complete-set';
+    return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/reps-time:
+   *   post:
+   *     summary: Criar repetição reps-time
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [exercise_id, set, reps, time, rest]
+   *             properties:
+   *               exercise_id:
+   *                 type: number
+   *                 example: 1
+   *               set:
+   *                 type: number
+   *                 example: 3
+   *               reps:
+   *                 type: number
+   *                 example: 12
+   *               time:
+   *                 type: number
+   *                 example: 30
+   *               rest:
+   *                 type: number
+   *                 example: 60
+   *     responses:
+   *       201:
+   *         description: Repetição reps-time criada com sucesso
+   */
+  async createRepsTime(req: Request, res: Response): Promise<Response> {
+    req.params.type = 'reps-time';
+    return this.create(req, res);
   }
 }
 
