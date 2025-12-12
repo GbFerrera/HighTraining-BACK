@@ -3,6 +3,20 @@ import moment from 'moment-timezone';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
 
+type RepType = 'reps-load' | 'reps-load-time' | 'complete-set' | 'reps-time';
+
+const TABLES: Record<RepType, string> = {
+  'reps-load': 'rep_reps_load',
+  'reps-load-time': 'rep_reps_load_time',
+  'complete-set': 'rep_complete_set',
+  'reps-time': 'rep_reps_time',
+};
+
+interface RepetitionData {
+  type: RepType;
+  data: any;
+}
+
 interface CreateExerciseDTO {
   name: string;
   trainer_id?: number;
@@ -11,6 +25,7 @@ interface CreateExerciseDTO {
   video_url?: string;
   image_url?: string;
   favorites?: boolean;
+  repetition?: RepetitionData;
 }
 
 interface UpdateExerciseDTO {
@@ -21,6 +36,7 @@ interface UpdateExerciseDTO {
   video_url?: string;
   image_url?: string;
   favorites?: boolean;
+  repetitions?: number;
 }
 
 interface ExerciseQueryParams {
@@ -69,12 +85,15 @@ class ExercisesController {
    *               favorites:
    *                 type: boolean
    *                 default: false
+   *               repetitions:
+   *                 type: integer
+   *                 nullable: true
    *     responses:
    *       201:
    *         description: Exercise created
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, trainer_id, muscle_group, equipment, video_url, image_url, favorites } = req.body as CreateExerciseDTO;
+    const { name, trainer_id, muscle_group, equipment, video_url, image_url, favorites, repetition } = req.body as CreateExerciseDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -125,7 +144,60 @@ class ExercisesController {
         "created_at",
       ]);
 
-    return res.status(201).json(exercise);
+    // Criar repetição se fornecida
+    let repetitionRecord = null;
+    if (repetition && repetition.type && repetition.data) {
+      const { type, data } = repetition;
+      
+      if (!(type in TABLES)) {
+        throw new AppError("Tipo de repetição inválido", 400);
+      }
+
+      const table = TABLES[type];
+      let payload: any = { exercise_id: exercise.id, created_at: now };
+
+      switch (type) {
+        case 'reps-load': {
+          const { set, reps, load, rest } = data;
+          if ([set, reps, load, rest].some((v: any) => v === undefined)) {
+            throw new AppError('Campos obrigatórios para reps-load: set, reps, load, rest', 400);
+          }
+          payload = { ...payload, set: Number(set), reps: Number(reps), load: Number(load), rest: Number(rest) };
+          break;
+        }
+        case 'reps-load-time': {
+          const { reps, load, time } = data;
+          if ([reps, load, time].some((v: any) => v === undefined)) {
+            throw new AppError('Campos obrigatórios para reps-load-time: reps, load, time', 400);
+          }
+          payload = { ...payload, reps: Number(reps), load: Number(load), time: Number(time) };
+          break;
+        }
+        case 'complete-set': {
+          const { set, reps, load, time, rest } = data;
+          if ([set, reps, load, time, rest].some((v: any) => v === undefined)) {
+            throw new AppError('Campos obrigatórios para complete-set: set, reps, load, time, rest', 400);
+          }
+          payload = { ...payload, set: Number(set), reps: Number(reps), load: Number(load), time: Number(time), rest: Number(rest) };
+          break;
+        }
+        case 'reps-time': {
+          const { set, reps, time, rest } = data;
+          if ([set, reps, time, rest].some((v: any) => v === undefined)) {
+            throw new AppError('Campos obrigatórios para reps-time: set, reps, time, rest', 400);
+          }
+          payload = { ...payload, set: Number(set), reps: Number(reps), time: Number(time), rest: Number(rest) };
+          break;
+        }
+      }
+
+      [repetitionRecord] = await knex(table).insert(payload).returning('*');
+    }
+
+    return res.status(201).json({
+      exercise,
+      repetition: repetitionRecord
+    });
   }
 
   /**
@@ -174,6 +246,8 @@ class ExercisesController {
    *                     type: string
    *                   favorites:
    *                     type: boolean
+   *                   repetitions:
+   *                     type: integer
    */
   async index(req: Request, res: Response): Promise<Response> {
     const admin_id = req.headers.admin_id as string;

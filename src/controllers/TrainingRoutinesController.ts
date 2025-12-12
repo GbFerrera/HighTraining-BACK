@@ -309,6 +309,95 @@ class TrainingRoutinesController {
     await knex('training_routines').where({ id, admin_id }).delete();
     return res.json({ message: 'Registro excluído com sucesso' });
   }
+
+  /**
+   * @swagger
+   * /training-routines/student/{student_id}/complete:
+   *   get:
+   *     summary: Get complete training routines with trainings and exercises for student
+   *     tags: [Training Routines]
+   *     parameters:
+   *       - in: path
+   *         name: student_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   */
+  async getStudentCompleteRoutines(req: Request, res: Response): Promise<Response> {
+    const admin_id = req.headers.admin_id as string;
+    const { student_id } = req.params;
+
+    if (!admin_id || !student_id) {
+      throw new AppError('É necessário enviar o ID do admin e do estudante', 400);
+    }
+
+    // Buscar rotinas do estudante
+    const routines = await knex('training_routines')
+      .select(
+        'training_routines.*',
+        'students.name as student_name',
+        'trainers.name as trainer_name'
+      )
+      .leftJoin('students', 'training_routines.student_id', 'students.id')
+      .leftJoin('trainers', 'training_routines.trainer_id', 'trainers.id')
+      .where({
+        'training_routines.admin_id': admin_id,
+        'training_routines.student_id': student_id
+      })
+      .orderBy('training_routines.start_date', 'desc');
+
+    // Para cada rotina, buscar os treinos vinculados
+    const routinesWithTrainings = await Promise.all(
+      routines.map(async (routine) => {
+        const trainings = await knex('routine_trainings')
+          .select(
+            'trainings.*',
+            'routine_trainings.order as routine_order',
+            'routine_trainings.is_active',
+            'routine_trainings.notes as routine_notes'
+          )
+          .join('trainings', 'routine_trainings.training_id', 'trainings.id')
+          .where('routine_trainings.routine_id', routine.id)
+          .orderBy('routine_trainings.order', 'asc');
+
+        // Para cada treino, buscar os exercícios vinculados
+        const trainingsWithExercises = await Promise.all(
+          trainings.map(async (training) => {
+            const exercises = await knex('exercise_trainings')
+              .select(
+                'exercises.*',
+                'exercise_trainings.sets',
+                'exercise_trainings.reps',
+                'exercise_trainings.rest_time',
+                'exercise_trainings.order as exercise_order',
+                'exercise_trainings.notes as exercise_notes',
+                'exercise_trainings.video_url as exercise_video_url'
+              )
+              .join('exercises', 'exercise_trainings.exercise_id', 'exercises.id')
+              .where('exercise_trainings.training_id', training.id)
+              .orderBy('exercise_trainings.order', 'asc');
+
+            return {
+              ...training,
+              exercises
+            };
+          })
+        );
+
+        return {
+          ...routine,
+          trainings: trainingsWithExercises
+        };
+      })
+    );
+
+    return res.json(routinesWithTrainings);
+  }
 }
 
 export default new TrainingRoutinesController();

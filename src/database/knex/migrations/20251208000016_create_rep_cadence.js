@@ -3,7 +3,7 @@ exports.up = function(knex) {
     table.increments('id').primary();
     table.integer('exercise_id').unsigned().notNullable();
     table.foreign('exercise_id').references('id').inTable('exercises').onDelete('CASCADE');
-    table.integer('cadence').notNullable();
+    table.string('cadence').notNullable();
     table.timestamp('created_at').defaultTo(knex.fn.now());
     table.index(['exercise_id']);
   });
