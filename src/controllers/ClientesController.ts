@@ -45,6 +45,9 @@ class ClientesController {
    *                 type: integer
    *               gender:
    *                 type: string
+   *               description:
+   *                 type: string
+   *                 nullable: true
    *     responses:
    *       201:
    *         description: Student created
@@ -66,7 +69,7 @@ class ClientesController {
    *               $ref: '#/components/schemas/Error'
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { name, email, password, trainer_id, phone_number, date_of_birth, age, gender } = req.body as CreateClienteDTO;
+    const { name, email, password, trainer_id, phone_number, date_of_birth, age, gender, description } = req.body as CreateClienteDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -122,6 +125,7 @@ class ClientesController {
         date_of_birth: date_of_birth || null,
         age: age || null,
         gender: gender || null,
+        description: description || null,
         created_at: now,
         updated_at: now,
       })
@@ -134,6 +138,7 @@ class ClientesController {
         "date_of_birth",
         "age",
         "gender",
+        "description",
         "created_at",
         "updated_at",
       ]);
@@ -198,6 +203,7 @@ class ClientesController {
         "students.date_of_birth",
         "students.age",
         "students.gender",
+        "students.description",
         "students.created_at",
         "students.updated_at",
         "trainers.name as trainer_name"
@@ -283,6 +289,7 @@ class ClientesController {
         "students.date_of_birth",
         "students.age",
         "students.gender",
+        "students.description",
         "students.created_at",
         "students.updated_at",
         "trainers.name as trainer_name"
@@ -352,7 +359,7 @@ class ClientesController {
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { name, email, password, trainer_id, phone_number, date_of_birth, age, gender } = req.body as UpdateClienteDTO;
+    const { name, email, password, trainer_id, phone_number, date_of_birth, age, gender, description } = req.body as UpdateClienteDTO;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) {
@@ -411,6 +418,7 @@ class ClientesController {
       date_of_birth: date_of_birth !== undefined ? date_of_birth : cliente.date_of_birth,
       age: age !== undefined ? age : cliente.age,
       gender: gender !== undefined ? gender : cliente.gender,
+      description: description !== undefined ? description : cliente.description,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     };
 
@@ -430,6 +438,7 @@ class ClientesController {
         "students.date_of_birth",
         "students.age",
         "students.gender",
+        "students.description",
         "students.created_at",
         "students.updated_at",
         "trainers.name as trainer_name"

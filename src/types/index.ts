@@ -15,6 +15,7 @@ export interface Treinador {
   email: string;
   password: string;
   phone_number?: string;
+  instagram?: string;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +31,7 @@ export interface Cliente {
   date_of_birth?: string;
   age?: number;
   gender?: string;
+  description?: string;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +74,14 @@ export interface AgendaPoint {
   updated_at: string;
 }
 
+export interface RoutineProgress {
+  id: number;
+  training_routine_id: number;
+  status: 'completed' | 'started';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Exercise {
   id: number;
   admin_id: number;
@@ -104,6 +114,7 @@ export interface CreateClienteDTO {
   date_of_birth?: string;
   age?: number;
   gender?: string;
+  description?: string;
 }
 
 export interface UpdateClienteDTO {
@@ -115,6 +126,7 @@ export interface UpdateClienteDTO {
   date_of_birth?: string;
   age?: number;
   gender?: string;
+  description?: string;
 }
 
 export interface CreateTreinadorDTO {
@@ -122,6 +134,7 @@ export interface CreateTreinadorDTO {
   email: string;
   password: string;
   phone_number?: string;
+  instagram?: string;
 }
 
 export interface UpdateTreinadorDTO {
@@ -129,6 +142,7 @@ export interface UpdateTreinadorDTO {
   email?: string;
   password?: string;
   phone_number?: string;
+  instagram?: string;
 }
 
 export interface CreateAdminDTO {
@@ -201,6 +215,15 @@ export interface UpdateAgendaPointDTO {
   description?: string;
   scheduled_at?: string;
   status?: string;
+}
+
+export interface CreateRoutineProgressDTO {
+  training_routine_id: number;
+  status: 'completed' | 'started';
+}
+
+export interface UpdateRoutineProgressDTO {
+  status?: 'completed' | 'started';
 }
 
 // Response Types

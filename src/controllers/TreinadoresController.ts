@@ -15,6 +15,7 @@ interface CreateTreinadorDTO {
   specialties?: string;
   academic_background?: string;
   about_me?: string;
+  instagram?: string;
 }
 
 interface UpdateTreinadorDTO {
@@ -28,6 +29,7 @@ interface UpdateTreinadorDTO {
   specialties?: string;
   academic_background?: string;
   about_me?: string;
+  instagram?: string;
 }
 
 interface TreinadorQueryParams {
@@ -68,13 +70,16 @@ class TreinadoresController {
    *               position:
    *                 type: string
    *                 nullable: true
+   *               instagram:
+   *                 type: string
+   *                 nullable: true
    *     responses:
    *       201:
    *         description: Trainer created
    */
   async create(req: Request, res: Response): Promise<Response> {
     const { name, email, password, document, phone_number, position,
-      years_of_experience, specialties, academic_background, about_me
+      years_of_experience, specialties, academic_background, about_me, instagram
     } = req.body as CreateTreinadorDTO;
     const admin_id = req.headers.admin_id as string;
 
@@ -123,6 +128,7 @@ class TreinadoresController {
         specialties: specialties || null,
         academic_background: academic_background || null,
         about_me: about_me || null,
+        instagram: instagram || null,
         created_at: now,
         updated_at: now,
       })
@@ -138,6 +144,7 @@ class TreinadoresController {
         "specialties",
         "academic_background",
         "about_me",
+        "instagram",
         "created_at",
         "updated_at",
       ]);
@@ -186,6 +193,7 @@ class TreinadoresController {
         "specialties",
         "academic_background",
         "about_me",
+        "instagram",
         "created_at",
         "updated_at"
       )
@@ -250,6 +258,7 @@ class TreinadoresController {
         "specialties",
         "academic_background",
         "about_me",
+        "instagram",
         "created_at",
         "updated_at"
       )
@@ -305,7 +314,7 @@ class TreinadoresController {
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
     const { name, email, document, phone_number, position, password,
-      years_of_experience, specialties, academic_background, about_me
+      years_of_experience, specialties, academic_background, about_me, instagram
     } = req.body as UpdateTreinadorDTO;
     const admin_id = req.headers.admin_id as string;
 
@@ -351,6 +360,7 @@ class TreinadoresController {
       specialties: specialties !== undefined ? specialties : treinador.specialties,
       academic_background: academic_background !== undefined ? academic_background : treinador.academic_background,
       about_me: about_me !== undefined ? about_me : treinador.about_me,
+      instagram: instagram !== undefined ? instagram : treinador.instagram,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     };
 
@@ -373,6 +383,7 @@ class TreinadoresController {
         "specialties",
         "academic_background",
         "about_me",
+        "instagram",
         "created_at",
         "updated_at"
       )

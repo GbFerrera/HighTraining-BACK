@@ -8,6 +8,8 @@ const clienteUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'cliente
 const treinadorUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'treinador-photos');
 const feedbackUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'feedback-photos');
 const timelineUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'timeline-photos');
+const studentProfileUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'student-profile-photos');
+const trainerProfileUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-profile-photos');
 
 // Criar diretórios se não existirem
 if (!fs.existsSync(clienteUploadDir)) {
@@ -24,6 +26,14 @@ if (!fs.existsSync(feedbackUploadDir)) {
 
 if (!fs.existsSync(timelineUploadDir)) {
   fs.mkdirSync(timelineUploadDir, { recursive: true });
+}
+
+if (!fs.existsSync(studentProfileUploadDir)) {
+  fs.mkdirSync(studentProfileUploadDir, { recursive: true });
+}
+
+if (!fs.existsSync(trainerProfileUploadDir)) {
+  fs.mkdirSync(trainerProfileUploadDir, { recursive: true });
 }
 
 // Filtro para aceitar apenas imagens
@@ -128,4 +138,46 @@ export const timelineUpload = multer({
   }
 });
 
-export { clienteUploadDir, treinadorUploadDir, feedbackUploadDir, timelineUploadDir };
+// Configuração do storage para fotos de perfil de estudantes
+const studentProfileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, studentProfileUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const hash = crypto.randomBytes(16).toString('hex');
+    const filename = `${hash}-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, filename);
+  }
+});
+
+// Configuração do storage para fotos de perfil de treinadores
+const trainerProfileStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, trainerProfileUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const hash = crypto.randomBytes(16).toString('hex');
+    const filename = `${hash}-${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, filename);
+  }
+});
+
+// Configuração do Multer para fotos de perfil de estudantes
+export const studentProfileUpload = multer({
+  storage: studentProfileStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // Limite de 5MB
+  }
+});
+
+// Configuração do Multer para fotos de perfil de treinadores
+export const trainerProfileUpload = multer({
+  storage: trainerProfileStorage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // Limite de 5MB
+  }
+});
+
+export { clienteUploadDir, treinadorUploadDir, feedbackUploadDir, timelineUploadDir, studentProfileUploadDir, trainerProfileUploadDir };
