@@ -13,6 +13,7 @@ exercisesRoutes.post("/", exercisesController.create);
 exercisesRoutes.get("/", exercisesController.index);
 exercisesRoutes.get("/:id", exercisesController.show);
 exercisesRoutes.put("/:id", exercisesController.update);
+exercisesRoutes.patch("/:id/favorites", exercisesController.updateFavorites);
 exercisesRoutes.delete("/:id", exercisesController.delete);
 
 export default exercisesRoutes;

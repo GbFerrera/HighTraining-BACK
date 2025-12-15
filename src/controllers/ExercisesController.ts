@@ -536,6 +536,92 @@ class ExercisesController {
 
   /**
    * @swagger
+   * /exercises/{id}/favorites:
+   *   patch:
+   *     summary: Update exercise favorites status
+   *     tags: [Exercises]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [favorites]
+   *             properties:
+   *               favorites:
+   *                 type: boolean
+   *     responses:
+   *       200:
+   *         description: Favorites status atualizado com sucesso
+   */
+  async updateFavorites(req: Request, res: Response): Promise<Response> {
+    const { id } = req.params;
+    const { favorites } = req.body;
+    const admin_id = req.headers.admin_id as string;
+
+    if (!admin_id) {
+      throw new AppError("É necessário enviar o ID do admin", 400);
+    }
+
+    if (favorites === undefined) {
+      throw new AppError("É necessário enviar o campo favorites", 400);
+    }
+
+    const exercise = await knex("exercises")
+      .leftJoin("trainers", "exercises.trainer_id", "trainers.id")
+      .where({ "exercises.id": id })
+      .andWhere(function() {
+        this.where("trainers.admin_id", admin_id).orWhereNull("exercises.trainer_id");
+      })
+      .first();
+
+    if (!exercise) {
+      throw new AppError("Exercício não encontrado", 404);
+    }
+
+    await knex("exercises")
+      .update({ favorites })
+      .where({ id });
+
+    const updatedExercise = await knex("exercises")
+      .select(
+        "exercises.id",
+        "exercises.trainer_id",
+        "exercises.name",
+        "exercises.muscle_group",
+        "exercises.equipment",
+        "exercises.video_url",
+        "exercises.image_url",
+        "exercises.favorites",
+        "exercises.created_at",
+        "trainers.name as trainer_name"
+      )
+      .leftJoin("trainers", "exercises.trainer_id", "trainers.id")
+      .where({ "exercises.id": id })
+      .andWhere(function() {
+        this.where("trainers.admin_id", admin_id).orWhereNull("exercises.trainer_id");
+      })
+      .first();
+
+    return res.status(200).json({
+      message: "Favorites atualizado com sucesso",
+      exercise: updatedExercise
+    });
+  }
+
+  /**
+   * @swagger
    * /exercises/{id}:
    *   delete:
    *     summary: Delete exercise
