@@ -332,6 +332,137 @@ class ExerciseTrainingsController {
 
   /**
    * @swagger
+   * /exercise-trainings/{id}:
+   *   put:
+   *     summary: Update exercise-training link
+   *     tags: [ExerciseTrainings]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               video_url:
+   *                 type: string
+   *                 nullable: true
+   *               sets:
+   *                 type: integer
+   *                 nullable: true
+   *               reps:
+   *                 type: integer
+   *                 nullable: true
+   *               rest_time:
+   *                 type: integer
+   *                 nullable: true
+   *               order:
+   *                 type: integer
+   *                 nullable: true
+   *               notes:
+   *                 type: string
+   *                 nullable: true
+   *               rep_type:
+   *                 type: string
+   *                 nullable: true
+   *               default_load:
+   *                 type: number
+   *                 nullable: true
+   *               default_set:
+   *                 type: integer
+   *                 nullable: true
+   *               default_reps:
+   *                 type: integer
+   *                 nullable: true
+   *               default_time:
+   *                 type: integer
+   *                 nullable: true
+   *               default_rest:
+   *                 type: integer
+   *                 nullable: true
+   *     responses:
+   *       200:
+   *         description: Link updated
+   */
+  async update(req: Request, res: Response): Promise<Response> {
+    const { id } = req.params;
+    const admin_id = req.headers.admin_id as string;
+    const { video_url, sets, reps, rest_time, order, notes, rep_type, default_load, default_set, default_reps, default_time, default_rest } = req.body;
+
+    if (!admin_id || !id) {
+      throw new AppError("É necessário enviar o ID do admin e do registro", 400);
+    }
+
+    const exerciseTraining = await knex("exercise_trainings")
+      .where({ id, admin_id })
+      .first();
+    
+    if (!exerciseTraining) {
+      throw new AppError("Registro não encontrado", 404);
+    }
+
+    const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
+
+    const updateData: any = {
+      updated_at: now,
+    };
+
+    if (video_url !== undefined) updateData.video_url = video_url;
+    if (sets !== undefined) updateData.sets = sets;
+    if (reps !== undefined) updateData.reps = reps;
+    if (rest_time !== undefined) updateData.rest_time = rest_time;
+    if (order !== undefined) updateData.order = order;
+    if (notes !== undefined) updateData.notes = notes;
+    if (rep_type !== undefined) updateData.rep_type = rep_type;
+    if (default_load !== undefined) updateData.default_load = default_load;
+    if (default_set !== undefined) updateData.default_set = default_set;
+    if (default_reps !== undefined) updateData.default_reps = default_reps;
+    if (default_time !== undefined) updateData.default_time = default_time;
+    if (default_rest !== undefined) updateData.default_rest = default_rest;
+
+    await knex("exercise_trainings")
+      .where({ id, admin_id })
+      .update(updateData);
+
+    const updated = await knex("exercise_trainings")
+      .select(
+        "exercise_trainings.id",
+        "exercise_trainings.admin_id",
+        "exercise_trainings.training_id",
+        "exercise_trainings.exercise_id",
+        "exercise_trainings.video_url",
+        "exercise_trainings.sets",
+        "exercise_trainings.reps",
+        "exercise_trainings.rest_time",
+        "exercise_trainings.order",
+        "exercise_trainings.notes",
+        "exercise_trainings.rep_type",
+        "exercise_trainings.default_load",
+        "exercise_trainings.default_set",
+        "exercise_trainings.default_reps",
+        "exercise_trainings.default_time",
+        "exercise_trainings.default_rest",
+        "exercise_trainings.created_at",
+        "exercise_trainings.updated_at"
+      )
+      .where({ "exercise_trainings.id": id })
+      .first();
+    
+    return res.json(updated);
+  }
+
+  /**
+   * @swagger
    * /exercise-trainings/training/{training_id}:
    *   get:
    *     summary: Get exercises from a training

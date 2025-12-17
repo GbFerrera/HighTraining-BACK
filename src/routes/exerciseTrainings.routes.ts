@@ -7,6 +7,7 @@ exerciseTrainingsRoutes.post("/", exerciseTrainingsController.create);
 exerciseTrainingsRoutes.get("/", exerciseTrainingsController.index);
 exerciseTrainingsRoutes.get("/training/:training_id", exerciseTrainingsController.getByTraining);
 exerciseTrainingsRoutes.get("/:id", exerciseTrainingsController.show);
+exerciseTrainingsRoutes.put("/:id", exerciseTrainingsController.update);
 exerciseTrainingsRoutes.delete("/:id", exerciseTrainingsController.delete);
 
 export default exerciseTrainingsRoutes;
