@@ -374,22 +374,21 @@ class ExerciseTrainingsController {
    *                 nullable: true
    *               rep_type:
    *                 type: string
-   *                 enum: [reps-load, reps-load-time, complete-set, reps-time]
    *                 nullable: true
    *               default_load:
    *                 type: number
    *                 nullable: true
    *               default_set:
-   *                 type: number
+   *                 type: integer
    *                 nullable: true
    *               default_reps:
-   *                 type: number
+   *                 type: integer
    *                 nullable: true
    *               default_time:
-   *                 type: number
+   *                 type: integer
    *                 nullable: true
    *               default_rest:
-   *                 type: number
+   *                 type: integer
    *                 nullable: true
    *     responses:
    *       200:
@@ -398,47 +397,42 @@ class ExerciseTrainingsController {
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
     const admin_id = req.headers.admin_id as string;
-    const {
-      video_url,
-      sets,
-      reps,
-      rest_time,
-      order,
-      notes,
-      rep_type,
-      default_load,
-      default_set,
-      default_reps,
-      default_time,
-      default_rest
-    } = req.body as Partial<CreateExerciseTrainingDTO>;
+    const { video_url, sets, reps, rest_time, order, notes, rep_type, default_load, default_set, default_reps, default_time, default_rest } = req.body;
 
     if (!admin_id || !id) {
       throw new AppError("É necessário enviar o ID do admin e do registro", 400);
     }
 
-    const existing = await knex("exercise_trainings").where({ id, admin_id }).first();
-    if (!existing) {
+    const exerciseTraining = await knex("exercise_trainings")
+      .where({ id, admin_id })
+      .first();
+    
+    if (!exerciseTraining) {
       throw new AppError("Registro não encontrado", 404);
     }
 
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
-    const updateData: any = { updated_at: now };
 
-    if (video_url !== undefined) updateData.video_url = video_url ?? null;
-    if (sets !== undefined) updateData.sets = sets ?? null;
-    if (reps !== undefined) updateData.reps = reps ?? null;
-    if (rest_time !== undefined) updateData.rest_time = rest_time ?? null;
-    if (order !== undefined) updateData.order = order ?? null;
-    if (notes !== undefined) updateData.notes = notes ?? null;
-    if (rep_type !== undefined) updateData.rep_type = rep_type ?? null;
-    if (default_load !== undefined) updateData.default_load = default_load ?? null;
-    if (default_set !== undefined) updateData.default_set = default_set ?? null;
-    if (default_reps !== undefined) updateData.default_reps = default_reps ?? null;
-    if (default_time !== undefined) updateData.default_time = default_time ?? null;
-    if (default_rest !== undefined) updateData.default_rest = default_rest ?? null;
+    const updateData: any = {
+      updated_at: now,
+    };
 
-    await knex("exercise_trainings").where({ id, admin_id }).update(updateData);
+    if (video_url !== undefined) updateData.video_url = video_url;
+    if (sets !== undefined) updateData.sets = sets;
+    if (reps !== undefined) updateData.reps = reps;
+    if (rest_time !== undefined) updateData.rest_time = rest_time;
+    if (order !== undefined) updateData.order = order;
+    if (notes !== undefined) updateData.notes = notes;
+    if (rep_type !== undefined) updateData.rep_type = rep_type;
+    if (default_load !== undefined) updateData.default_load = default_load;
+    if (default_set !== undefined) updateData.default_set = default_set;
+    if (default_reps !== undefined) updateData.default_reps = default_reps;
+    if (default_time !== undefined) updateData.default_time = default_time;
+    if (default_rest !== undefined) updateData.default_rest = default_rest;
+
+    await knex("exercise_trainings")
+      .where({ id, admin_id })
+      .update(updateData);
 
     const updated = await knex("exercise_trainings")
       .select(
@@ -459,18 +453,11 @@ class ExerciseTrainingsController {
         "exercise_trainings.default_time",
         "exercise_trainings.default_rest",
         "exercise_trainings.created_at",
-        "exercise_trainings.updated_at",
-        "trainings.name as training_name",
-        "exercises.name as exercise_name",
-        "exercises.muscle_group",
-        "exercises.equipment",
-        "exercises.video_url as exercise_video_url"
+        "exercise_trainings.updated_at"
       )
-      .leftJoin("trainings", "exercise_trainings.training_id", "trainings.id")
-      .leftJoin("exercises", "exercise_trainings.exercise_id", "exercises.id")
-      .where({ "exercise_trainings.id": id, "exercise_trainings.admin_id": admin_id })
+      .where({ "exercise_trainings.id": id })
       .first();
-
+    
     return res.json(updated);
   }
 
