@@ -7,6 +7,7 @@ treinadoresRoutes.post("/", treinadoresController.create);
 treinadoresRoutes.get("/", treinadoresController.index);
 treinadoresRoutes.get("/:id", treinadoresController.show);
 treinadoresRoutes.put("/:id", treinadoresController.update);
+treinadoresRoutes.patch("/:id/contacts", treinadoresController.updateContacts);
 treinadoresRoutes.delete("/:id", treinadoresController.delete);
 
 export default treinadoresRoutes;

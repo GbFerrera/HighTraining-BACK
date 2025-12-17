@@ -35,9 +35,11 @@ class AgendaPointController {
    *                 type: string
    *               notes:
    *                 type: string
+   *               training_id:
+   *                 type: integer
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { student_id, training_date, duration_times, notes, day_week } = req.body;
+    const { student_id, training_date, duration_times, notes, day_week, training_id } = req.body;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) throw new AppError("O ID do admin é obrigatório", 400);
@@ -55,9 +57,19 @@ class AgendaPointController {
 
     const now = moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss");
 
-    const [agendaPoint] = await knex("schedule_appointments")
-      .insert({ admin_id, student_id, training_date, duration_times: duration_times || null, notes: notes || null, day_week: day_week || null, created_at: now, updated_at: now })
-      .returning(["id", "admin_id", "student_id", "training_date", "duration_times", "notes", "day_week", "created_at", "updated_at"]);
+    const [agendaPoint] = await knex("agenda_point")
+      .insert({ 
+        admin_id, 
+        student_id, 
+        training_date, 
+        duration_times: duration_times || null, 
+        notes: notes || null, 
+        day_week: day_week || null, 
+        training_id: training_id || null,
+        created_at: now, 
+        updated_at: now 
+      })
+      .returning(["id", "admin_id", "student_id", "training_date", "duration_times", "notes", "day_week", "training_id", "created_at", "updated_at"]);
 
     return res.status(201).json(agendaPoint);
   }
@@ -95,16 +107,21 @@ class AgendaPointController {
 
     if (!admin_id) throw new AppError("É necessário enviar o ID do admin", 400);
 
-    let query = knex("schedule_appointments")
-      .select("schedule_appointments.*", "students.name as student_name")
-      .leftJoin("students", "schedule_appointments.student_id", "students.id")
-      .where("schedule_appointments.admin_id", admin_id);
+    let query = knex("agenda_point")
+      .select(
+        "agenda_point.*", 
+        "students.name as student_name",
+        "trainings.name as training_name"
+      )
+      .leftJoin("students", "agenda_point.student_id", "students.id")
+      .leftJoin("trainings", "agenda_point.training_id", "trainings.id")
+      .where("agenda_point.admin_id", admin_id);
 
-    if (student_id) query = query.where("schedule_appointments.student_id", student_id);
-    if (start_date) query = query.where("schedule_appointments.training_date", ">=", start_date);
-    if (end_date) query = query.where("schedule_appointments.training_date", "<=", end_date);
+    if (student_id) query = query.where("agenda_point.student_id", student_id);
+    if (start_date) query = query.where("agenda_point.training_date", ">=", start_date);
+    if (end_date) query = query.where("agenda_point.training_date", "<=", end_date);
 
-    const agendaPoints = await query.orderBy("schedule_appointments.training_date", "asc");
+    const agendaPoints = await query.orderBy("agenda_point.training_date", "asc");
     return res.json(agendaPoints);
   }
 
@@ -132,10 +149,10 @@ class AgendaPointController {
 
     if (!id || !admin_id) throw new AppError("É necessário enviar os IDs", 400);
 
-    const agendaPoint = await knex("schedule_appointments")
-      .select("schedule_appointments.*", "students.name as student_name")
-      .leftJoin("students", "schedule_appointments.student_id", "students.id")
-      .where({ "schedule_appointments.id": id, "schedule_appointments.admin_id": admin_id })
+    const agendaPoint = await knex("agenda_point")
+      .select("agenda_point.*", "students.name as student_name")
+      .leftJoin("students", "agenda_point.student_id", "students.id")
+      .where({ "agenda_point.id": id, "agenda_point.admin_id": admin_id })
       .first();
     
     if (!agendaPoint) throw new AppError("Agendamento não encontrado", 404);
@@ -174,29 +191,37 @@ class AgendaPointController {
    *                 type: string
    *               notes:
    *                 type: string
+   *               training_id:
+   *                 type: integer
    */
   async update(req: Request, res: Response): Promise<Response> {
     const { id } = req.params;
-    const { training_date, duration_times, notes, day_week } = req.body;
+    const { training_date, duration_times, notes, day_week, training_id } = req.body;
     const admin_id = req.headers.admin_id as string;
 
     if (!admin_id) throw new AppError("É necessário enviar o ID do admin", 400);
 
-    const agendaPoint = await knex("schedule_appointments").where({ id, admin_id }).first();
+    const agendaPoint = await knex("agenda_point").where({ id, admin_id }).first();
     if (!agendaPoint) throw new AppError("Agendamento não encontrado", 404);
 
-    await knex("schedule_appointments").update({
+    await knex("agenda_point").update({
       training_date: training_date || agendaPoint.training_date,
       duration_times: duration_times !== undefined ? duration_times : agendaPoint.duration_times,
       notes: notes !== undefined ? notes : agendaPoint.notes,
       day_week: day_week !== undefined ? day_week : agendaPoint.day_week,
+      training_id: training_id !== undefined ? training_id : agendaPoint.training_id,
       updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
     }).where({ id, admin_id });
 
-    const updated = await knex("schedule_appointments")
-      .select("schedule_appointments.*", "students.name as student_name")
-      .leftJoin("students", "schedule_appointments.student_id", "students.id")
-      .where({ "schedule_appointments.id": id, "schedule_appointments.admin_id": admin_id })
+    const updated = await knex("agenda_point")
+      .select(
+        "agenda_point.*", 
+        "students.name as student_name",
+        "trainings.name as training_name"
+      )
+      .leftJoin("students", "agenda_point.student_id", "students.id")
+      .leftJoin("trainings", "agenda_point.training_id", "trainings.id")
+      .where({ "agenda_point.id": id, "agenda_point.admin_id": admin_id })
       .first();
 
     return res.status(200).json({ message: "Agendamento atualizado com sucesso", agendaPoint: updated });
@@ -226,10 +251,10 @@ class AgendaPointController {
 
     if (!admin_id || !id) throw new AppError("É necessário enviar os IDs", 400);
 
-    const agendaPoint = await knex("schedule_appointments").where({ id, admin_id }).first();
+    const agendaPoint = await knex("agenda_point").where({ id, admin_id }).first();
     if (!agendaPoint) throw new AppError("Agendamento não encontrado", 404);
     
-    await knex("schedule_appointments").where({ id, admin_id }).delete();
+    await knex("agenda_point").where({ id, admin_id }).delete();
     return res.json({ message: "Agendamento excluído com sucesso" });
   }
 
@@ -258,15 +283,11 @@ class AgendaPointController {
 
     if (!admin_id || !date) throw new AppError("É necessário enviar os parâmetros", 400);
 
-    const startOfDay = moment(date).startOf('day').format("YYYY-MM-DD HH:mm:ss");
-    const endOfDay = moment(date).endOf('day').format("YYYY-MM-DD HH:mm:ss");
-
-    const agendaPoints = await knex("schedule_appointments")
-      .select("schedule_appointments.*", "students.name as student_name")
-      .leftJoin("students", "schedule_appointments.student_id", "students.id")
-      .where("schedule_appointments.admin_id", admin_id)
-      .whereBetween("schedule_appointments.training_date", [startOfDay, endOfDay])
-      .orderBy("schedule_appointments.training_date", "asc");
+    const agendaPoints = await knex("agenda_point")
+      .select("agenda_point.*", "students.name as student_name")
+      .leftJoin("students", "agenda_point.student_id", "students.id")
+      .where("agenda_point.admin_id", admin_id)
+      .andWhereRaw("DATE(agenda_point.training_date) = ?", [date]);
     
     return res.json(agendaPoints);
   }

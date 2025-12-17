@@ -443,6 +443,112 @@ class TreinadoresController {
     
     return res.json({ message: "Treinador excluído com sucesso" });
   }
+
+  /**
+   * @swagger
+   * /trainers/{id}/contacts:
+   *   patch:
+   *     summary: Update trainer's contact information
+   *     tags: [Trainers]
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             properties:
+   *               email:
+   *                 type: string
+   *                 format: email
+   *               phone_number:
+   *                 type: string
+   *               instagram:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Trainer contacts updated successfully
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 message:
+   *                   type: string
+   *                 treinador:
+   *                   $ref: '#/components/schemas/Trainer'
+   */
+  async updateContacts(req: Request, res: Response): Promise<Response> {
+    const { id } = req.params;
+    const { email, phone_number, instagram } = req.body;
+    const admin_id = req.headers.admin_id as string;
+
+    if (!admin_id) {
+      throw new AppError("É necessário enviar o ID do admin", 400);
+    }
+
+    // Check if trainer exists
+    const treinador = await knex("trainers").where({ id, admin_id }).first();
+    if (!treinador) {
+      throw new AppError("Treinador não encontrado", 404);
+    }
+
+    // Check if email is already in use by another trainer
+    if (email && email !== treinador.email) {
+      const existingTreinadorWithEmail = await knex("trainers")
+        .where({ email, admin_id })
+        .whereNot({ id })
+        .first();
+
+      if (existingTreinadorWithEmail) {
+        throw new AppError("Este e-mail já está cadastrado", 400);
+      }
+    }
+
+    // Prepare update data
+    const updateData: any = {
+      updated_at: moment().tz("America/Sao_Paulo").format("YYYY-MM-DD HH:mm:ss"),
+    };
+
+    // Only update fields that were provided in the request
+    if (email !== undefined) updateData.email = email;
+    if (phone_number !== undefined) updateData.phone_number = phone_number;
+    if (instagram !== undefined) updateData.instagram = instagram;
+
+    // If no valid fields to update
+    if (Object.keys(updateData).length <= 1) {
+      throw new AppError("Nenhum dado válido para atualização fornecido", 400);
+    }
+
+    // Perform the update
+    await knex("trainers")
+      .where({ id, admin_id })
+      .update(updateData);
+
+    // Fetch the updated trainer data
+    const updatedTreinador = await knex("trainers")
+      .select(
+        "id",
+        "admin_id",
+        "name",
+        "email",
+        "phone_number",
+        "instagram",
+        "updated_at"
+      )
+      .where({ id, admin_id })
+      .first();
+
+    return res.status(200).json({
+      message: "Contatos do treinador atualizados com sucesso",
+      treinador: updatedTreinador
+    });
+  }
 }
 
 export default new TreinadoresController();
