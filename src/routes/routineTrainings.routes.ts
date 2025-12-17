@@ -7,6 +7,7 @@ routineTrainingsRoutes.post('/', routineTrainingsController.create);
 routineTrainingsRoutes.get('/', routineTrainingsController.index);
 routineTrainingsRoutes.get('/:id', routineTrainingsController.show);
 routineTrainingsRoutes.get('/:id/resolved-exercises', routineTrainingsController.resolvedExercises);
+routineTrainingsRoutes.put('/:id/assigned-settings', routineTrainingsController.updateAssignedSettings);
 routineTrainingsRoutes.put('/:id', routineTrainingsController.update);
 routineTrainingsRoutes.delete('/:id', routineTrainingsController.delete);
 

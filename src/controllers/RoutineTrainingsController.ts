@@ -270,6 +270,93 @@ class RoutineTrainingsController {
     return res.json(resolved);
   }
 
+  async updateAssignedSettings(req: Request, res: Response): Promise<Response> {
+    const admin_id = req.headers.admin_id as string;
+    const { id } = req.params as any;
+    const { exercise_settings } = req.body as any;
+    if (!admin_id || !id) throw new AppError('É necessário enviar os IDs', 400);
+    const existingRt = await knex('routine_trainings')
+      .leftJoin('training_routines', 'routine_trainings.routine_id', 'training_routines.id')
+      .where({ 'routine_trainings.id': id })
+      .andWhere('training_routines.admin_id', admin_id)
+      .first();
+    if (!existingRt) throw new AppError('Registro não encontrado', 404);
+    const now = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD HH:mm:ss');
+    if (Array.isArray(exercise_settings) && exercise_settings.length > 0) {
+      for (const s of exercise_settings) {
+        if (!s.exercise_id) continue;
+        const inTraining = await knex('exercise_trainings')
+          .where({ training_id: existingRt.training_id, exercise_id: s.exercise_id })
+          .first();
+        if (!inTraining) continue;
+        const existingSetting = await knex('assigned_exercise_settings')
+          .where({ routine_training_id: existingRt.id, exercise_id: s.exercise_id })
+          .first();
+        if (existingSetting) {
+          const updateData: any = { updated_at: now };
+          if (Object.prototype.hasOwnProperty.call(s, 'rep_type')) updateData.rep_type = s.rep_type ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'load')) updateData.load = s.load ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'set')) updateData.set = s.set ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'reps')) updateData.reps = s.reps ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'time')) updateData.time = s.time ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'rest')) updateData.rest = s.rest ?? null;
+          if (Object.keys(updateData).length > 1) {
+            await knex('assigned_exercise_settings')
+              .update(updateData)
+              .where({ id: existingSetting.id });
+          }
+        } else {
+          const insertData: any = {
+            routine_training_id: existingRt.id,
+            exercise_id: s.exercise_id,
+            created_at: now,
+            updated_at: now,
+          };
+          if (Object.prototype.hasOwnProperty.call(s, 'rep_type')) insertData.rep_type = s.rep_type ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'load')) insertData.load = s.load ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'set')) insertData.set = s.set ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'reps')) insertData.reps = s.reps ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'time')) insertData.time = s.time ?? null;
+          if (Object.prototype.hasOwnProperty.call(s, 'rest')) insertData.rest = s.rest ?? null;
+          await knex('assigned_exercise_settings').insert(insertData);
+        }
+      }
+    }
+    const rows = await knex('exercise_trainings')
+      .select(
+        'exercise_trainings.exercise_id',
+        'exercises.name as exercise_name',
+        'exercise_trainings.rep_type as preset_rep_type',
+        'exercise_trainings.default_load as preset_load',
+        'exercise_trainings.default_set as preset_set',
+        'exercise_trainings.default_reps as preset_reps',
+        'exercise_trainings.default_time as preset_time',
+        'exercise_trainings.default_rest as preset_rest',
+        'assigned_exercise_settings.rep_type as override_rep_type',
+        'assigned_exercise_settings.load as override_load',
+        'assigned_exercise_settings.set as override_set',
+        'assigned_exercise_settings.reps as override_reps',
+        'assigned_exercise_settings.time as override_time',
+        'assigned_exercise_settings.rest as override_rest'
+      )
+      .leftJoin('exercises', 'exercise_trainings.exercise_id', 'exercises.id')
+      .leftJoin('assigned_exercise_settings', function() {
+        this.on('assigned_exercise_settings.exercise_id', '=', 'exercise_trainings.exercise_id')
+          .andOn('assigned_exercise_settings.routine_training_id', '=', knex.raw('?', [id]));
+      })
+      .where({ 'exercise_trainings.training_id': existingRt.training_id });
+    const resolved = rows.map(r => ({
+      exercise_id: r.exercise_id,
+      exercise_name: r.exercise_name,
+      rep_type: r.override_rep_type ?? r.preset_rep_type ?? null,
+      load: r.override_load ?? r.preset_load ?? null,
+      set: r.override_set ?? r.preset_set ?? null,
+      reps: r.override_reps ?? r.preset_reps ?? null,
+      time: r.override_time ?? r.preset_time ?? null,
+      rest: r.override_rest ?? r.preset_rest ?? null,
+    }));
+    return res.status(200).json({ message: 'Configurações atualizadas com sucesso', resolved });
+  }
   /**
    * @swagger
    * /routine-trainings/{id}:

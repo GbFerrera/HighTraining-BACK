@@ -357,6 +357,7 @@ class TrainingRoutinesController {
         const trainings = await knex('routine_trainings')
           .select(
             'trainings.*',
+            'routine_trainings.id as routine_training_id',
             'routine_trainings.order as routine_order',
             'routine_trainings.is_active',
             'routine_trainings.notes as routine_notes'
@@ -371,14 +372,21 @@ class TrainingRoutinesController {
             const exercises = await knex('exercise_trainings')
               .select(
                 'exercises.*',
-                'exercise_trainings.sets',
-                'exercise_trainings.reps',
-                'exercise_trainings.rest_time',
+                knex.raw('COALESCE(assigned_exercise_settings.set, exercise_trainings.sets) as sets'),
+                knex.raw('COALESCE(assigned_exercise_settings.reps, exercise_trainings.reps) as reps'),
+                knex.raw('COALESCE(assigned_exercise_settings.rest, exercise_trainings.rest_time) as rest_time'),
                 'exercise_trainings.order as exercise_order',
                 'exercise_trainings.notes as exercise_notes',
-                'exercise_trainings.video_url as exercise_video_url'
+                'exercise_trainings.video_url as exercise_video_url',
+                'assigned_exercise_settings.load as load',
+                'assigned_exercise_settings.time as time',
+                'assigned_exercise_settings.rep_type as rep_type'
               )
               .join('exercises', 'exercise_trainings.exercise_id', 'exercises.id')
+              .leftJoin('assigned_exercise_settings', function() {
+                this.on('assigned_exercise_settings.exercise_id', '=', 'exercise_trainings.exercise_id')
+                  .andOn('assigned_exercise_settings.routine_training_id', '=', knex.raw('?', [training.routine_training_id]));
+              })
               .where('exercise_trainings.training_id', training.id)
               .orderBy('exercise_trainings.order', 'asc');
 
