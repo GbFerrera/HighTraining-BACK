@@ -80,7 +80,7 @@ class ClientePhotosController {
 
     // Se existir, deletar a foto antiga do sistema de arquivos
     if (existingPhoto) {
-      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'student-photos', existingPhoto.filename);
+      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', existingPhoto.filename);
       if (fs.existsSync(oldFilePath)) {
         fs.unlinkSync(oldFilePath);
       }
@@ -160,20 +160,30 @@ class ClientePhotosController {
   async download(req: Request, res: Response): Promise<void> {
     const { student_id } = req.params as any;
 
+    console.log('=== DOWNLOAD FOTO CLIENTE ===');
+    console.log('Student ID:', student_id);
+
     const photo = await knex('student_photos')
       .where({ student_id, is_profile: true })
       .first();
 
+    console.log('Foto encontrada no banco:', photo);
+
     if (!photo) {
+      console.log('Erro: Foto não encontrada no banco de dados');
       throw new AppError('Foto não encontrada', 404); 
     }
 
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'student-photos', photo.filename);
+    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', photo.filename);
+    console.log('Caminho do arquivo:', filePath);
+    console.log('Arquivo existe?', fs.existsSync(filePath));
 
     if (!fs.existsSync(filePath)) {
+      console.log('Erro: Arquivo não encontrado no sistema de arquivos');
       throw new AppError('Arquivo não encontrado no servidor', 404);
     }
 
+    console.log('Enviando arquivo...');
     res.sendFile(filePath);
   }
 
@@ -208,7 +218,7 @@ class ClientePhotosController {
     }
 
     // Deletar arquivo do sistema
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'student-photos', photo.filename);
+    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', photo.filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }

@@ -5,6 +5,7 @@ import fs from 'fs';
 
 // Diretórios para salvar as fotos
 const clienteUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos');
+const studentPhotosDir = path.resolve(__dirname, '..', '..', 'uploads', 'student-photos');
 const treinadorUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'treinador-photos');
 const feedbackUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'feedback-photos');
 const timelineUploadDir = path.resolve(__dirname, '..', '..', 'uploads', 'timeline-photos');
@@ -14,6 +15,10 @@ const trainerProfileUploadDir = path.resolve(__dirname, '..', '..', 'uploads', '
 // Criar diretórios se não existirem
 if (!fs.existsSync(clienteUploadDir)) {
   fs.mkdirSync(clienteUploadDir, { recursive: true });
+}
+
+if (!fs.existsSync(studentPhotosDir)) {
+  fs.mkdirSync(studentPhotosDir, { recursive: true });
 }
 
 if (!fs.existsSync(treinadorUploadDir)) {
@@ -53,10 +58,10 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   }
 };
 
-// Configuração do storage para clientes
+// Configuração do storage para clientes (student-photos)
 const clienteStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, clienteUploadDir);
+    cb(null, studentPhotosDir);
   },
   filename: (req, file, cb) => {
     const hash = crypto.randomBytes(16).toString('hex');
@@ -180,4 +185,4 @@ export const trainerProfileUpload = multer({
   }
 });
 
-export { clienteUploadDir, treinadorUploadDir, feedbackUploadDir, timelineUploadDir, studentProfileUploadDir, trainerProfileUploadDir };
+export { clienteUploadDir, studentPhotosDir, treinadorUploadDir, feedbackUploadDir, timelineUploadDir, studentProfileUploadDir, trainerProfileUploadDir };
