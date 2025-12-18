@@ -570,6 +570,27 @@ class RepetitionsController {
     // Buscar repetições em todas as tabelas
     const allRepetitions: any[] = [];
 
+    const exerciseTrainingPreset = await knex('exercise_trainings')
+      .select(
+        'exercise_trainings.id',
+        'exercise_trainings.exercise_id',
+        'exercise_trainings.sets',
+        'exercise_trainings.reps',
+        'exercise_trainings.rest_time',
+        'exercise_trainings.rep_type',
+        'exercise_trainings.default_load',
+        'exercise_trainings.default_set',
+        'exercise_trainings.default_reps',
+        'exercise_trainings.default_time',
+        'exercise_trainings.default_rest',
+        'exercise_trainings.created_at',
+        'exercise_trainings.updated_at'
+      )
+      .where({ 'exercise_trainings.admin_id': admin_id, 'exercise_trainings.exercise_id': exercise_id })
+      .orderBy('exercise_trainings.updated_at', 'desc')
+      .orderBy('exercise_trainings.created_at', 'desc')
+      .first();
+
     // Buscar em rep_reps_load
     const repsLoad = await knex('rep_reps_load')
       .where({ exercise_id })
@@ -672,6 +693,49 @@ class RepetitionsController {
         formatted: `${rep.time}s - ${rep.incline}% inclinação - ${rep.rest}s descanso`
       });
     });
+
+    if (exerciseTrainingPreset) {
+      const presetType: RepType = (exerciseTrainingPreset.rep_type as RepType) || getRepetitionTypeForExercise(exercise.name, exercise.muscle_group);
+      const presetCreatedAt = exerciseTrainingPreset.updated_at || exerciseTrainingPreset.created_at;
+      const presetSet = exerciseTrainingPreset.default_set ?? exerciseTrainingPreset.sets ?? null;
+      const presetReps = exerciseTrainingPreset.default_reps ?? exerciseTrainingPreset.reps ?? null;
+      const presetLoad = exerciseTrainingPreset.default_load ?? null;
+      const presetTime = exerciseTrainingPreset.default_time ?? null;
+      const presetRest = exerciseTrainingPreset.default_rest ?? exerciseTrainingPreset.rest_time ?? null;
+
+      let formatted = 'Repetição definida';
+      if (presetType === 'reps-load') {
+        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${presetLoad ?? 0}kg - ${presetRest ?? 0}s descanso`;
+      } else if (presetType === 'reps-load-time') {
+        formatted = `${presetReps ?? 0} reps - ${presetLoad ?? 0}kg - ${presetTime ?? 0}s`;
+      } else if (presetType === 'complete-set') {
+        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${presetLoad ?? 0}kg - ${presetTime ?? 0}s - ${presetRest ?? 0}s descanso`;
+      } else if (presetType === 'reps-time') {
+        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${presetTime ?? 0}s - ${presetRest ?? 0}s descanso`;
+      } else if (presetType === 'cadence') {
+        formatted = `Cadência`;
+      } else if (presetType === 'notes') {
+        formatted = `Observações`;
+      } else if (presetType === 'running') {
+        formatted = `Corrida`;
+      } else if (presetType === 'time-incline') {
+        formatted = `${presetTime ?? 0}s - inclinação - ${presetRest ?? 0}s descanso`;
+      }
+
+      allRepetitions.push({
+        id: exerciseTrainingPreset.id,
+        exercise_id: Number(exercise_id),
+        type: presetType,
+        set: presetSet,
+        reps: presetReps,
+        load: presetLoad,
+        time: presetTime,
+        rest: presetRest,
+        created_at: presetCreatedAt,
+        formatted,
+        source: 'exercise_trainings',
+      });
+    }
 
     // Ordenar todas as repetições por data de criação (mais recente primeiro)
     allRepetitions.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
