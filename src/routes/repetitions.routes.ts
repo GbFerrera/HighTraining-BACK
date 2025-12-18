@@ -6,7 +6,9 @@ const repetitionsRoutes = Router();
 // Rotas específicas devem vir antes das rotas genéricas
 repetitionsRoutes.get('/exercise/:exercise_id', repetitionsController.getByExercise.bind(repetitionsController));
 repetitionsRoutes.get('/load-progress/student/:student_id', repetitionsController.loadProgressByStudent.bind(repetitionsController));
+repetitionsRoutes.get('/load-adjustments/trainer', repetitionsController.getTrainerStudentsAdjustments.bind(repetitionsController));
 repetitionsRoutes.post('/auto/:exercise_id', repetitionsController.createAuto.bind(repetitionsController));
+repetitionsRoutes.patch('/exercise-training/:id/load', repetitionsController.updateExerciseTrainingLoad.bind(repetitionsController));
 
 // Rotas específicas para cada tipo de repetição
 repetitionsRoutes.post("/running", repetitionsController.createRunning.bind(repetitionsController));

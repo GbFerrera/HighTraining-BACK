@@ -703,13 +703,34 @@ class RepetitionsController {
       const presetTime = exerciseTrainingPreset.default_time ?? null;
       const presetRest = exerciseTrainingPreset.default_rest ?? exerciseTrainingPreset.rest_time ?? null;
 
+      // Buscar ajuste mais recente do aluno para este exercise_training (se houver student_id na query)
+      let adjustedLoad = null;
+      let adjustment = null;
+      const studentIdFromQuery = (req.query as any).student_id;
+      
+      if (studentIdFromQuery) {
+        adjustment = await knex('student_load_adjustments')
+          .where({ 
+            exercise_training_id: exerciseTrainingPreset.id,
+            student_id: studentIdFromQuery
+          })
+          .orderBy('created_at', 'desc')
+          .first();
+        
+        if (adjustment) {
+          adjustedLoad = adjustment.adjusted_load;
+        }
+      }
+
       let formatted = 'Repetição definida';
+      const displayLoad = adjustedLoad ?? presetLoad;
+      
       if (presetType === 'reps-load') {
-        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${presetLoad ?? 0}kg - ${presetRest ?? 0}s descanso`;
+        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${displayLoad ?? 0}kg - ${presetRest ?? 0}s descanso`;
       } else if (presetType === 'reps-load-time') {
-        formatted = `${presetReps ?? 0} reps - ${presetLoad ?? 0}kg - ${presetTime ?? 0}s`;
+        formatted = `${presetReps ?? 0} reps - ${displayLoad ?? 0}kg - ${presetTime ?? 0}s`;
       } else if (presetType === 'complete-set') {
-        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${presetLoad ?? 0}kg - ${presetTime ?? 0}s - ${presetRest ?? 0}s descanso`;
+        formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${displayLoad ?? 0}kg - ${presetTime ?? 0}s - ${presetRest ?? 0}s descanso`;
       } else if (presetType === 'reps-time') {
         formatted = `${presetSet ?? 0}x ${presetReps ?? 0} - ${presetTime ?? 0}s - ${presetRest ?? 0}s descanso`;
       } else if (presetType === 'cadence') {
@@ -728,7 +749,10 @@ class RepetitionsController {
         type: presetType,
         set: presetSet,
         reps: presetReps,
-        load: presetLoad,
+        load: displayLoad, // Mostra o peso ajustado se existir, senão o original
+        original_load: presetLoad, // Sempre mantém o peso original do personal
+        adjusted_load: adjustedLoad, // Peso ajustado pelo aluno (null se não ajustou)
+        has_adjustment: !!adjustment, // Flag indicando se houve ajuste
         time: presetTime,
         rest: presetRest,
         created_at: presetCreatedAt,
@@ -1408,6 +1432,213 @@ class RepetitionsController {
   async createRepsTime(req: Request, res: Response): Promise<Response> {
     req.params.type = 'reps-time';
     return this.create(req, res);
+  }
+
+  /**
+   * @swagger
+   * /repetitions/exercise-training/{id}/load:
+   *   patch:
+   *     summary: Registrar ajuste de carga feito pelo aluno (não sobrescreve o original)
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: path
+   *         name: id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do exercise_training
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required: [load, student_id]
+   *             properties:
+   *               load:
+   *                 type: number
+   *                 example: 55.5
+   *                 description: Nova carga ajustada pelo aluno
+   *               student_id:
+   *                 type: number
+   *                 example: 1
+   *                 description: ID do aluno que fez o ajuste
+   *     responses:
+   *       200:
+   *         description: Ajuste registrado com sucesso
+   *       400:
+   *         description: Dados inválidos
+   *       404:
+   *         description: Registro não encontrado
+   */
+  /**
+   * @swagger
+   * /repetitions/load-adjustments/trainer:
+   *   get:
+   *     summary: Buscar ajustes de peso recentes dos alunos do personal
+   *     tags: [Repetitions]
+   *     security:
+   *       - bearerAuth: []
+   *     parameters:
+   *       - in: header
+   *         name: admin_id
+   *         required: true
+   *         schema:
+   *           type: string
+   *         description: ID do administrador
+   *       - in: query
+   *         name: days
+   *         schema:
+   *           type: number
+   *         description: Número de dias para buscar ajustes (padrão 7)
+   *     responses:
+   *       200:
+   *         description: Lista de ajustes de peso dos alunos
+   */
+  async getTrainerStudentsAdjustments(req: Request, res: Response): Promise<Response> {
+    const admin_id = req.headers.admin_id as string;
+    if (!admin_id) throw new AppError('É necessário enviar o ID do admin', 400);
+
+    const days = Number(req.query.days) || 7;
+    const startDate = moment().subtract(days, 'days').tz('America/Sao_Paulo').format('YYYY-MM-DD HH:mm:ss');
+
+    // Buscar todos os alunos do personal
+    const students = await knex('students')
+      .select('students.id', 'students.name')
+      .leftJoin('trainers', 'students.trainer_id', 'trainers.id')
+      .where('trainers.admin_id', admin_id)
+      .orWhere('students.admin_id', admin_id);
+
+    const studentIds = students.map(s => s.id);
+
+    if (studentIds.length === 0) {
+      return res.json({ adjustments: [] });
+    }
+
+    // Buscar ajustes de peso dos últimos X dias
+    const adjustments = await knex('student_load_adjustments as sla')
+      .select(
+        'sla.id',
+        'sla.student_id',
+        'sla.exercise_training_id',
+        'sla.original_load',
+        'sla.adjusted_load',
+        'sla.created_at',
+        'students.name as student_name',
+        'exercises.name as exercise_name',
+        'exercise_trainings.exercise_id'
+      )
+      .leftJoin('students', 'sla.student_id', 'students.id')
+      .leftJoin('exercise_trainings', 'sla.exercise_training_id', 'exercise_trainings.id')
+      .leftJoin('exercises', 'exercise_trainings.exercise_id', 'exercises.id')
+      .whereIn('sla.student_id', studentIds)
+      .where('sla.created_at', '>=', startDate)
+      .orderBy('sla.created_at', 'desc');
+
+    // Agrupar por aluno e calcular estatísticas
+    const adjustmentsByStudent: Record<number, any> = {};
+    
+    adjustments.forEach(adj => {
+      if (!adjustmentsByStudent[adj.student_id]) {
+        adjustmentsByStudent[adj.student_id] = {
+          student_id: adj.student_id,
+          student_name: adj.student_name,
+          total_adjustments: 0,
+          increased: 0,
+          decreased: 0,
+          maintained: 0,
+          adjustments: []
+        };
+      }
+
+      const diff = adj.adjusted_load - adj.original_load;
+      adjustmentsByStudent[adj.student_id].total_adjustments++;
+      
+      if (diff > 0) adjustmentsByStudent[adj.student_id].increased++;
+      else if (diff < 0) adjustmentsByStudent[adj.student_id].decreased++;
+      else adjustmentsByStudent[adj.student_id].maintained++;
+
+      adjustmentsByStudent[adj.student_id].adjustments.push({
+        id: adj.id,
+        exercise_name: adj.exercise_name,
+        original_load: adj.original_load,
+        adjusted_load: adj.adjusted_load,
+        difference: diff,
+        created_at: adj.created_at
+      });
+    });
+
+    const result = Object.values(adjustmentsByStudent);
+
+    return res.json({ 
+      adjustments: result,
+      summary: {
+        total_students_with_adjustments: result.length,
+        total_adjustments: adjustments.length,
+        period_days: days
+      }
+    });
+  }
+
+  async updateExerciseTrainingLoad(req: Request, res: Response): Promise<Response> {
+    const { id } = req.params;
+    const admin_id = req.headers.admin_id as string;
+    
+    if (!admin_id) throw new AppError('É necessário enviar o ID do admin', 400);
+
+    const { load, student_id } = req.body as any;
+    const newLoad = Number(load);
+    const studentId = Number(student_id);
+    
+    if (load === undefined || isNaN(newLoad)) throw new AppError('Campo load é obrigatório e deve ser numérico', 400);
+    if (!student_id || isNaN(studentId)) throw new AppError('Campo student_id é obrigatório', 400);
+
+    const exerciseTraining = await knex('exercise_trainings')
+      .where({ 'exercise_trainings.id': id, 'exercise_trainings.admin_id': admin_id })
+      .first();
+
+    if (!exerciseTraining) throw new AppError('Registro não encontrado', 404);
+
+    const now = moment().tz('America/Sao_Paulo').format('YYYY-MM-DD HH:mm:ss');
+    const originalLoad = exerciseTraining.default_load || 0;
+
+    // Criar ou atualizar tabela de ajustes (student_load_adjustments)
+    // Verifica se já existe um ajuste para este aluno neste exercise_training
+    const existingAdjustment = await knex('student_load_adjustments')
+      .where({ 
+        exercise_training_id: id, 
+        student_id: studentId 
+      })
+      .orderBy('created_at', 'desc')
+      .first();
+
+    // Inserir novo registro de ajuste
+    const [adjustment] = await knex('student_load_adjustments')
+      .insert({
+        exercise_training_id: id,
+        student_id: studentId,
+        original_load: originalLoad,
+        adjusted_load: newLoad,
+        adjustment_reason: 'student_modification',
+        created_at: now,
+      })
+      .returning('*');
+
+    return res.status(200).json({ 
+      message: 'Ajuste de carga registrado com sucesso',
+      adjustment: adjustment,
+      original_load: originalLoad,
+      adjusted_load: newLoad,
+      difference: newLoad - originalLoad
+    });
   }
 }
 
