@@ -372,6 +372,7 @@ class TrainingRoutinesController {
             const exercises = await knex('exercise_trainings')
               .select(
                 'exercises.*',
+                'exercise_trainings.id as exercise_training_id',
                 knex.raw('COALESCE(assigned_exercise_settings.set, exercise_trainings.sets) as sets'),
                 knex.raw('COALESCE(assigned_exercise_settings.reps, exercise_trainings.reps) as reps'),
                 knex.raw('COALESCE(assigned_exercise_settings.rest, exercise_trainings.rest_time) as rest_time'),

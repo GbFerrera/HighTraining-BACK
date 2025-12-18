@@ -22,6 +22,7 @@ import routineProgressRoutes from './routineProgress.routes';
 import notificationsRoutes from './notifications.routes';
 import trainerSchedulesRoutes from './trainerSchedules.routes';
 import timelineRoutes from './timeline.routes';
+import studentSetExecutionsRoutes from './studentSetExecutions.routes';
 
 const routes = Router();
 
@@ -48,5 +49,6 @@ routes.use("/training-routines", trainingRoutinesRoutes);
 routes.use("/routine-trainings", routineTrainingsRoutes);
 routes.use("/routine-progress", routineProgressRoutes);
 routes.use("/timeline", timelineRoutes);
+routes.use("/student-set-executions", studentSetExecutionsRoutes);
 
 export default routes;
