@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
-import path from 'path';
-import fs from 'fs';
+import CloudinaryStorageService from '../services/CloudinaryStorageService';
 
 class FeedbackPhotosController {
   /**
@@ -73,21 +72,26 @@ class FeedbackPhotosController {
     const feedback = await knex('feedback').where({ id: feedback_id }).first();
 
     if (!feedback) {
-      // Deletar os arquivos que foram salvos
-      files.forEach(file => {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-      });
       throw new AppError('Feedback não encontrado', 404);
     }
 
     try {
+      // Upload files to Cloudinary
+      const uploadPromises = files.map(file => 
+        CloudinaryStorageService.uploadFeedbackPhoto(
+          file.buffer,
+          file.originalname,
+          Number(feedback_id)
+        )
+      );
+      
+      const uploadResults = await Promise.all(uploadPromises);
+      
       // Salvar informações das fotos no banco de dados
-      const photosData = files.map(file => ({
+      const photosData = files.map((file, index) => ({
         feedback_id,
-        filename: file.filename,
-        filepath: file.path,
+        filename: uploadResults[index].filename,
+        filepath: uploadResults[index].downloadURL,
         mimetype: file.mimetype,
         size: file.size,
         description: description || null,
@@ -100,13 +104,8 @@ class FeedbackPhotosController {
 
       return res.status(201).json(photos);
     } catch (error) {
-      // Em caso de erro, deletar os arquivos salvos
-      files.forEach(file => {
-        if (fs.existsSync(file.path)) {
-          fs.unlinkSync(file.path);
-        }
-      });
-      throw error;
+      console.error('Erro no upload para Cloudinary:', error);
+      throw new AppError('Erro ao fazer upload das imagens', 500);
     }
   }
 
@@ -200,13 +199,12 @@ class FeedbackPhotosController {
       throw new AppError('Foto não encontrada', 404);
     }
 
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'feedback-photos', photo.filename);
-
-    if (!fs.existsSync(filePath)) {
-      throw new AppError('Arquivo não encontrado no servidor', 404);
+    // Redirect to Cloudinary URL (stored in filepath)
+    if (!photo.filepath) {
+      throw new AppError('URL de download não encontrada', 404);
     }
 
-    res.sendFile(filePath);
+    res.redirect(photo.filepath);
   }
 
   /**
@@ -372,10 +370,16 @@ class FeedbackPhotosController {
       throw new AppError('Foto não encontrada', 404);
     }
 
-    // Deletar arquivo do sistema
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'feedback-photos', existingPhoto.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Deletar imagem do Cloudinary se existir
+    if (existingPhoto.filepath && existingPhoto.filepath.includes('cloudinary')) {
+      const urlParts = existingPhoto.filepath.split('/');
+      const publicIdWithExtension = urlParts.slice(-2).join('/');
+      const publicId = publicIdWithExtension.split('.')[0];
+      try {
+        await CloudinaryStorageService.deleteFile(publicId);
+      } catch (error) {
+        console.log('Erro ao deletar imagem do Cloudinary:', error);
+      }
     }
 
     // Deletar registro do banco

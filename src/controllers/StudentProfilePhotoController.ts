@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
-import path from 'path';
-import fs from 'fs';
+import CloudinaryStorageService from '../services/CloudinaryStorageService';
 
 class StudentProfilePhotoController {
   /**
@@ -55,6 +54,10 @@ class StudentProfilePhotoController {
     console.log('=== UPLOAD FOTO PERFIL ESTUDANTE ===');
     console.log('Student ID:', student_id);
     console.log('File recebido:', file ? 'SIM' : 'NÃO');
+    console.log('Request headers:', req.headers);
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Request files:', req.files);
+    console.log('Multer file object:', file);
 
     // Validar se student_id é um número válido
     if (!student_id || isNaN(Number(student_id))) {
@@ -71,60 +74,90 @@ class StudentProfilePhotoController {
       filename: file.filename,
       originalname: file.originalname,
       mimetype: file.mimetype,
-      size: file.size
+      size: file.size,
+      bufferLength: file.buffer ? file.buffer.length : 'undefined',
+      encoding: file.encoding,
+      fieldname: file.fieldname
     });
+
+    // Validar se o buffer existe e não está vazio (memoryStorage)
+    if (!file.buffer || file.buffer.length === 0) {
+      console.log('Erro: Buffer do arquivo está vazio');
+      throw new AppError('Arquivo inválido ou corrompido', 400);
+    }
+
+    console.log('Buffer válido recebido, tamanho:', file.buffer.length);
 
     // Verificar se o estudante existe
     const student = await knex('students').where({ id: student_id }).first();
 
     if (!student) {
-      // Deletar o arquivo que foi salvo
-      fs.unlinkSync(file.path);
       throw new AppError('Estudante não encontrado', 404);
     }
 
-    // Verificar se já existe uma foto de perfil para este estudante
-    const existingPhoto = await knex('students_profile_photo')
-      .where({ student_id })
-      .first();
+    try {
+      // Upload para Cloudinary
+      const uploadResult = await CloudinaryStorageService.uploadStudentProfilePhoto(
+        file.buffer,
+        file.originalname,
+        Number(student_id)
+      );
 
-    // Se existir, deletar a foto antiga do sistema de arquivos
-    if (existingPhoto) {
-      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'student-profile-photos', existingPhoto.filename);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
-      }
-      // Atualizar registro existente
-      await knex('students_profile_photo')
-        .where({ student_id })
-        .update({
-          filename: file.filename,
-          filepath: file.path,
-          mimetype: file.mimetype,
-          size: file.size,
-          updated_at: knex.fn.now()
-        });
-
-      const updatedPhoto = await knex('students_profile_photo')
+      // Verificar se já existe uma foto de perfil para este estudante
+      const existingPhoto = await knex('students_profile_photo')
         .where({ student_id })
         .first();
 
-      return res.status(200).json(updatedPhoto);
-    } else {
-      // Criar novo registro
-      const insertResult = await knex('students_profile_photo').insert({
-        student_id,
-        filename: file.filename,
-        filepath: file.path,
-        mimetype: file.mimetype,
-        size: file.size,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now()
-      }).returning('*');
+      // Se existir, atualizar registro existente
+      if (existingPhoto) {
+        // Deletar imagem antiga do Cloudinary se existir
+        if (existingPhoto.filepath && existingPhoto.filepath.includes('cloudinary')) {
+          // Extrair public_id da URL do Cloudinary para deletar
+          const urlParts = existingPhoto.filepath.split('/');
+          const publicIdWithExtension = urlParts.slice(-2).join('/');
+          const publicId = publicIdWithExtension.split('.')[0];
+          try {
+            await CloudinaryStorageService.deleteFile(publicId);
+          } catch (error) {
+            console.log('Erro ao deletar imagem antiga do Cloudinary:', error);
+          }
+        }
 
-      const photo = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+        // Atualizar registro existente
+        await knex('students_profile_photo')
+          .where({ student_id })
+          .update({
+            filename: uploadResult.filename,
+            filepath: uploadResult.downloadURL, // Armazenar URL do Cloudinary no campo filepath
+            mimetype: file.mimetype,
+            size: file.size,
+            updated_at: knex.fn.now()
+          });
 
-      return res.status(201).json(photo);
+        const updatedPhoto = await knex('students_profile_photo')
+          .where({ student_id })
+          .first();
+
+        return res.status(200).json(updatedPhoto);
+      } else {
+        // Criar novo registro
+        const insertResult = await knex('students_profile_photo').insert({
+          student_id,
+          filename: uploadResult.filename,
+          filepath: uploadResult.downloadURL, // Armazenar URL do Cloudinary no campo filepath
+          mimetype: file.mimetype,
+          size: file.size,
+          created_at: knex.fn.now(),
+          updated_at: knex.fn.now()
+        }).returning('*');
+
+        const photo = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+
+        return res.status(201).json(photo);
+      }
+    } catch (error) {
+      console.error('Erro no upload para Cloudinary:', error);
+      throw new AppError('Erro ao fazer upload da imagem', 500);
     }
   }
 
@@ -208,13 +241,12 @@ class StudentProfilePhotoController {
       throw new AppError('Foto de perfil não encontrada', 404);
     }
 
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'student-profile-photos', photo.filename);
-
-    if (!fs.existsSync(filePath)) {
-      throw new AppError('Arquivo não encontrado no servidor', 404);
+    if (!photo.filepath) {
+      throw new AppError('URL de download não encontrada', 404);
     }
 
-    res.sendFile(filePath);
+    // Redirect to Cloudinary URL (stored in filepath)
+    res.redirect(photo.filepath);
   }
 
   /**
@@ -251,10 +283,17 @@ class StudentProfilePhotoController {
       throw new AppError('Foto de perfil não encontrada', 404);
     }
 
-    // Deletar arquivo do sistema
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'student-profile-photos', photo.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Deletar imagem do Cloudinary se existir
+    if (photo.filepath && photo.filepath.includes('cloudinary')) {
+      // Extrair public_id da URL do Cloudinary para deletar
+      const urlParts = photo.filepath.split('/');
+      const publicIdWithExtension = urlParts.slice(-2).join('/');
+      const publicId = publicIdWithExtension.split('.')[0];
+      try {
+        await CloudinaryStorageService.deleteFile(publicId);
+      } catch (error) {
+        console.log('Erro ao deletar imagem do Cloudinary:', error);
+      }
     }
 
     // Deletar registro do banco

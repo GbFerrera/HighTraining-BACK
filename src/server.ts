@@ -31,7 +31,22 @@ app.set("socketio", io);
 app.set("notificationService", notificationService);
 
 app.use(cors());
-app.use(express.json());
+
+// Configure body parsing - exclude multipart requests from JSON parsing
+app.use(express.json({
+  type: (req) => {
+    // Only parse as JSON if it's not multipart/form-data
+    return !req.headers['content-type']?.includes('multipart/form-data');
+  }
+}));
+
+app.use(express.urlencoded({ 
+  extended: true,
+  type: (req) => {
+    // Only parse as urlencoded if it's not multipart/form-data
+    return !req.headers['content-type']?.includes('multipart/form-data');
+  }
+}));
 
 // Swagger UI
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

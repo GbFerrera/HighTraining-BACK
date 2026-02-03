@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
-import path from 'path';
-import fs from 'fs';
+import CloudinaryStorageService from '../services/CloudinaryStorageService';
 
 class ClientePhotosController {
   /**
@@ -68,8 +67,6 @@ class ClientePhotosController {
     const cliente = await knex('students').where({ id: student_id }).first();
 
     if (!cliente) {
-      // Deletar o arquivo que foi salvo
-      fs.unlinkSync(file.path);
       throw new AppError('Cliente não encontrado', 404);
     }
 
@@ -78,21 +75,44 @@ class ClientePhotosController {
       .where({ student_id, is_profile: true })
       .first();
 
-    // Se existir, deletar a foto antiga do sistema de arquivos
-    if (existingPhoto) {
-      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', existingPhoto.filename);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
+    // Se existir, deletar a foto antiga do Cloudinary
+    if (existingPhoto && existingPhoto.filepath && existingPhoto.filepath.includes('cloudinary')) {
+      const urlParts = existingPhoto.filepath.split('/');
+      const publicIdWithExtension = urlParts.slice(-2).join('/');
+      const publicId = publicIdWithExtension.split('.')[0];
+      try {
+        await CloudinaryStorageService.deleteFile(publicId);
+      } catch (error) {
+        console.log('Erro ao deletar imagem antiga do Cloudinary:', error);
       }
-      // Deletar registro antigo do banco
+    }
+    // Deletar registro antigo do banco
+    if (existingPhoto) {
       await knex('student_photos').where({ id: existingPhoto.id }).delete();
     }
 
+    // Upload file to Cloudinary
+    const uploadResult = await CloudinaryStorageService.uploadStudentProfilePhoto(
+      file.buffer,
+      file.originalname,
+      Number(student_id)
+    );
+    const filepath = uploadResult.downloadURL;
+
     // Salvar informações da foto no banco de dados
+    console.log('Salvando foto no banco de dados:', {
+      student_id,
+      filename: uploadResult.filename,
+      filepath,
+      mimetype: file.mimetype,
+      size: file.size,
+      is_profile: true
+    });
+
     const insertResult = await knex('student_photos').insert({
       student_id,
-      filename: file.filename,
-      filepath: file.path,
+      filename: uploadResult.filename,
+      filepath,
       mimetype: file.mimetype,
       size: file.size,
       is_profile: true,
@@ -101,6 +121,9 @@ class ClientePhotosController {
     }).returning('*');
 
     const photo = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+
+    console.log('Foto salva com sucesso:', photo);
+    console.log('Cloudinary URL salva:', filepath);
 
     return res.status(201).json(photo);
   }
@@ -127,15 +150,34 @@ class ClientePhotosController {
   async show(req: Request, res: Response): Promise<Response> {
     const { student_id } = req.params as any;
 
-    const photo = await knex('student_photos')
-      .where({ student_id, is_profile: true })
-      .first();
+    console.log('=== GET FOTOS PROGRESSO CLIENTE ===');
+    console.log('Student ID:', student_id);
 
-    if (!photo) {
-      throw new AppError('Foto não encontrada', 404);
+    // Buscar todas as fotos de progresso do estudante ordenadas por data (mais recente primeiro)
+    const photos = await knex('student_photos')
+      .where({ student_id, is_profile: true })
+      .orderBy('created_at', 'desc')
+      .select('*');
+    
+    console.log('Fotos de progresso encontradas:', photos.length);
+
+    if (!photos || photos.length === 0) {
+      console.log('Nenhuma foto de progresso encontrada para o estudante', student_id);
+      throw new AppError('Nenhuma foto encontrada', 404);
     }
 
-    return res.json(photo);
+    console.log('Retornando fotos:', photos.map(p => ({
+      id: p.id,
+      filepath: p.filepath,
+      created_at: p.created_at
+    })));
+
+    // Retornar todas as fotos para o carrossel
+    return res.json({
+      photos: photos,
+      total: photos.length,
+      latest: photos[0] // A mais recente sempre será a primeira
+    });
   }
 
   /**
@@ -174,17 +216,12 @@ class ClientePhotosController {
       throw new AppError('Foto não encontrada', 404); 
     }
 
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', photo.filename);
-    console.log('Caminho do arquivo:', filePath);
-    console.log('Arquivo existe?', fs.existsSync(filePath));
-
-    if (!fs.existsSync(filePath)) {
-      console.log('Erro: Arquivo não encontrado no sistema de arquivos');
-      throw new AppError('Arquivo não encontrado no servidor', 404);
+    // Redirect to Cloudinary URL (stored in filepath)
+    if (!photo.filepath) {
+      throw new AppError('URL de download não encontrada', 404);
     }
 
-    console.log('Enviando arquivo...');
-    res.sendFile(filePath);
+    res.redirect(photo.filepath);
   }
 
   /**
@@ -217,10 +254,16 @@ class ClientePhotosController {
       throw new AppError('Foto não encontrada', 404);
     }
 
-    // Deletar arquivo do sistema
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'cliente-photos', photo.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Deletar imagem do Cloudinary se existir
+    if (photo.filepath && photo.filepath.includes('cloudinary')) {
+      const urlParts = photo.filepath.split('/');
+      const publicIdWithExtension = urlParts.slice(-2).join('/');
+      const publicId = publicIdWithExtension.split('.')[0];
+      try {
+        await CloudinaryStorageService.deleteFile(publicId);
+      } catch (error) {
+        console.log('Erro ao deletar imagem do Cloudinary:', error);
+      }
     }
 
     // Deletar registro do banco

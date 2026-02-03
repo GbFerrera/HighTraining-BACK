@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
-import path from 'path';
-import fs from 'fs';
+import CloudinaryStorageService from '../services/CloudinaryStorageService';
 
 class TrainerProfilePhotoController {
   /**
@@ -71,60 +70,86 @@ class TrainerProfilePhotoController {
       filename: file.filename,
       originalname: file.originalname,
       mimetype: file.mimetype,
-      size: file.size
+      size: file.size,
+      bufferLength: file.buffer ? file.buffer.length : 'undefined'
     });
+
+    // Validar se o buffer existe e não está vazio
+    if (!file.buffer || file.buffer.length === 0) {
+      console.log('Erro: Buffer do arquivo está vazio');
+      throw new AppError('Arquivo inválido ou corrompido', 400);
+    }
 
     // Verificar se o treinador existe
     const trainer = await knex('trainers').where({ id: trainer_id }).first();
 
     if (!trainer) {
-      // Deletar o arquivo que foi salvo
-      fs.unlinkSync(file.path);
       throw new AppError('Treinador não encontrado', 404);
     }
 
-    // Verificar se já existe uma foto de perfil para este treinador
-    const existingPhoto = await knex('trainer_profile_photo')
-      .where({ trainer_id })
-      .first();
+    try {
+      // Upload para Cloudinary
+      const uploadResult = await CloudinaryStorageService.uploadTrainerProfilePhoto(
+        file.buffer,
+        file.originalname,
+        Number(trainer_id)
+      );
 
-    // Se existir, deletar a foto antiga do sistema de arquivos
-    if (existingPhoto) {
-      const oldFilePath = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-profile-photos', existingPhoto.filename);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
-      }
-      // Atualizar registro existente
-      await knex('trainer_profile_photo')
-        .where({ trainer_id })
-        .update({
-          filename: file.filename,
-          filepath: file.path,
-          mimetype: file.mimetype,
-          size: file.size,
-          updated_at: knex.fn.now()
-        });
-
-      const updatedPhoto = await knex('trainer_profile_photo')
+      // Verificar se já existe uma foto de perfil para este treinador
+      const existingPhoto = await knex('trainer_profile_photo')
         .where({ trainer_id })
         .first();
 
-      return res.status(200).json(updatedPhoto);
-    } else {
-      // Criar novo registro
-      const insertResult = await knex('trainer_profile_photo').insert({
-        trainer_id,
-        filename: file.filename,
-        filepath: file.path,
-        mimetype: file.mimetype,
-        size: file.size,
-        created_at: knex.fn.now(),
-        updated_at: knex.fn.now()
-      }).returning('*');
+      // Se existir, atualizar registro existente
+      if (existingPhoto) {
+        // Deletar imagem antiga do Cloudinary se existir
+        if (existingPhoto.filepath && existingPhoto.filepath.includes('cloudinary')) {
+          // Extrair public_id da URL do Cloudinary para deletar
+          const urlParts = existingPhoto.filepath.split('/');
+          const publicIdWithExtension = urlParts.slice(-2).join('/');
+          const publicId = publicIdWithExtension.split('.')[0];
+          try {
+            await CloudinaryStorageService.deleteFile(publicId);
+          } catch (error) {
+            console.log('Erro ao deletar imagem antiga do Cloudinary:', error);
+          }
+        }
 
-      const photo = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+        // Atualizar registro existente
+        await knex('trainer_profile_photo')
+          .where({ trainer_id })
+          .update({
+            filename: uploadResult.filename,
+            filepath: uploadResult.downloadURL, // Armazenar URL do Cloudinary no campo filepath
+            mimetype: file.mimetype,
+            size: file.size,
+            updated_at: knex.fn.now()
+          });
 
-      return res.status(201).json(photo);
+        const updatedPhoto = await knex('trainer_profile_photo')
+          .where({ trainer_id })
+          .first();
+
+        return res.status(200).json(updatedPhoto);
+      } else {
+        // Criar novo registro
+        const insertResult = await knex('trainer_profile_photo').insert({
+          trainer_id,
+          filename: uploadResult.filename,
+          filepath: uploadResult.downloadURL, // Armazenar URL do Cloudinary no campo filepath
+          mimetype: file.mimetype,
+          size: file.size,
+          created_at: knex.fn.now(),
+          updated_at: knex.fn.now()
+        }).returning('*');
+
+        const photo = Array.isArray(insertResult) ? insertResult[0] : insertResult;
+
+        return res.status(201).json(photo);
+      }
+    } catch (error) {
+      console.error('Erro no upload para Cloudinary:', error);
+      throw new AppError('Erro ao fazer upload da imagem', 500);
     }
   }
 
@@ -208,13 +233,12 @@ class TrainerProfilePhotoController {
       throw new AppError('Foto de perfil não encontrada', 404);
     }
 
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-profile-photos', photo.filename);
-
-    if (!fs.existsSync(filePath)) {
-      throw new AppError('Arquivo não encontrado no servidor', 404);
+    if (!photo.filepath) {
+      throw new AppError('URL de download não encontrada', 404);
     }
 
-    res.sendFile(filePath);
+    // Redirect to Cloudinary URL (stored in filepath)
+    res.redirect(photo.filepath);
   }
 
   /**
@@ -251,10 +275,17 @@ class TrainerProfilePhotoController {
       throw new AppError('Foto de perfil não encontrada', 404);
     }
 
-    // Deletar arquivo do sistema
-    const filePath = path.resolve(__dirname, '..', '..', 'uploads', 'trainer-profile-photos', photo.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    // Deletar imagem do Cloudinary se existir
+    if (photo.filepath && photo.filepath.includes('cloudinary')) {
+      // Extrair public_id da URL do Cloudinary para deletar
+      const urlParts = photo.filepath.split('/');
+      const publicIdWithExtension = urlParts.slice(-2).join('/');
+      const publicId = publicIdWithExtension.split('.')[0];
+      try {
+        await CloudinaryStorageService.deleteFile(publicId);
+      } catch (error) {
+        console.log('Erro ao deletar imagem do Cloudinary:', error);
+      }
     }
 
     // Deletar registro do banco

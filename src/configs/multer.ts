@@ -82,9 +82,9 @@ const treinadorStorage = multer.diskStorage({
   }
 });
 
-// Configuração do Multer para clientes
+// Configuração do Multer para clientes (usando memoryStorage para Cloudinary)
 export const upload = multer({
-  storage: clienteStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // Limite de 5MB
@@ -115,18 +115,18 @@ const timelineStorage = multer.diskStorage({
   }
 });
 
-// Configuração do Multer para treinadores
+// Configuração do Multer para treinadores (usando memoryStorage para Cloudinary)
 export const treinadorUpload = multer({
-  storage: treinadorStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // Limite de 5MB
   }
 });
 
-// Configuração do Multer para feedback (permite múltiplos arquivos)
+// Configuração do Multer para feedback (usando memoryStorage para Cloudinary)
 export const feedbackUpload = multer({
-  storage: feedbackStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // Limite de 5MB por arquivo
@@ -134,51 +134,27 @@ export const feedbackUpload = multer({
   }
 });
 
-// Configuração do Multer para timeline (uma foto por entrada)
+// Configuração do Multer para timeline (usando memoryStorage para Cloudinary)
 export const timelineUpload = multer({
-  storage: timelineStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024
   }
 });
 
-// Configuração do storage para fotos de perfil de estudantes
-const studentProfileStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, studentProfileUploadDir);
-  },
-  filename: (req, file, cb) => {
-    const hash = crypto.randomBytes(16).toString('hex');
-    const filename = `${hash}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, filename);
-  }
-});
-
-// Configuração do storage para fotos de perfil de treinadores
-const trainerProfileStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, trainerProfileUploadDir);
-  },
-  filename: (req, file, cb) => {
-    const hash = crypto.randomBytes(16).toString('hex');
-    const filename = `${hash}-${Date.now()}${path.extname(file.originalname)}`;
-    cb(null, filename);
-  }
-});
-
-// Configuração do Multer para fotos de perfil de estudantes
+// Configuração do Multer para fotos de perfil de estudantes (usando memoryStorage para Cloudinary)
 export const studentProfileUpload = multer({
-  storage: studentProfileStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // Limite de 5MB
   }
 });
 
-// Configuração do Multer para fotos de perfil de treinadores
+// Configuração do Multer para fotos de perfil de treinadores (usando memoryStorage para Cloudinary)
 export const trainerProfileUpload = multer({
-  storage: trainerProfileStorage,
+  storage: multer.memoryStorage(),
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // Limite de 5MB

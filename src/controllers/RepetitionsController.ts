@@ -1514,8 +1514,7 @@ class RepetitionsController {
     const students = await knex('students')
       .select('students.id', 'students.name')
       .leftJoin('trainers', 'students.trainer_id', 'trainers.id')
-      .where('trainers.admin_id', admin_id)
-      .orWhere('students.admin_id', admin_id);
+      .where('trainers.admin_id', admin_id);
 
     const studentIds = students.map(s => s.id);
 

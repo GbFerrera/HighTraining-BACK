@@ -1,8 +1,7 @@
 import { Request, Response } from 'express';
 import knex from '../database/knex';
 import AppError from '../utils/AppError';
-import path from 'path';
-import fs from 'fs';
+import CloudinaryStorageService from '../services/CloudinaryStorageService';
 
 class TimelineController {
   /**
@@ -59,16 +58,22 @@ class TimelineController {
 
     const student = await knex('students').where({ id: student_id }).first();
     if (!student) {
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
       throw new AppError('Aluno não encontrado', 404);
+    }
+
+    let filepath = null;
+    if (file) {
+      const uploadResult = await CloudinaryStorageService.uploadTimelinePhoto(
+        file.buffer,
+        file.originalname,
+        Number(student_id)
+      );
+      filepath = uploadResult.downloadURL;
     }
 
     const payload: any = {
       student_id,
-      filename: file.filename,
-      filepath: file.path,
-      mimetype: file.mimetype,
-      size: file.size,
+      filepath,
       description: description || null,
       event_at: event_at || knex.fn.now(),
       created_at: knex.fn.now(),
@@ -139,20 +144,12 @@ class TimelineController {
     const entry = await knex('timeline_entries').where({ id: entry_id }).first();
     if (!entry) throw new AppError('Entrada não encontrada', 404);
 
-    const filePath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      'uploads',
-      'timeline-photos',
-      entry.filename
-    );
-
-    if (!fs.existsSync(filePath)) {
-      throw new AppError('Arquivo não encontrado no servidor', 404);
+    // Redirect to Cloudinary URL (stored in filepath)
+    if (!entry.filepath) {
+      throw new AppError('URL de download não encontrada', 404);
     }
 
-    res.sendFile(filePath);
+    res.redirect(entry.filepath);
   }
 
   /**
@@ -254,15 +251,17 @@ class TimelineController {
     const existing = await knex('timeline_entries').where({ id: entry_id }).first();
     if (!existing) throw new AppError('Entrada não encontrada', 404);
 
-    const filePath = path.resolve(
-      __dirname,
-      '..',
-      '..',
-      'uploads',
-      'timeline-photos',
-      existing.filename
-    );
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // Deletar imagem do Cloudinary se existir
+    if (existing.filepath && existing.filepath.includes('cloudinary')) {
+      const urlParts = existing.filepath.split('/');
+      const publicIdWithExtension = urlParts.slice(-2).join('/');
+      const publicId = publicIdWithExtension.split('.')[0];
+      try {
+        await CloudinaryStorageService.deleteFile(publicId);
+      } catch (error) {
+        console.log('Erro ao deletar imagem do Cloudinary:', error);
+      }
+    }
 
     await knex('timeline_entries').where({ id: entry_id }).delete();
     return res.status(204).send();
