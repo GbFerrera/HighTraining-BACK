@@ -70,26 +70,7 @@ class ClientePhotosController {
       throw new AppError('Cliente não encontrado', 404);
     }
 
-    // Verificar se já existe uma foto de perfil para este cliente
-    const existingPhoto = await knex('student_photos')
-      .where({ student_id, is_profile: true })
-      .first();
-
-    // Se existir, deletar a foto antiga do Cloudinary
-    if (existingPhoto && existingPhoto.filepath && existingPhoto.filepath.includes('cloudinary')) {
-      const urlParts = existingPhoto.filepath.split('/');
-      const publicIdWithExtension = urlParts.slice(-2).join('/');
-      const publicId = publicIdWithExtension.split('.')[0];
-      try {
-        await CloudinaryStorageService.deleteFile(publicId);
-      } catch (error) {
-        console.log('Erro ao deletar imagem antiga do Cloudinary:', error);
-      }
-    }
-    // Deletar registro antigo do banco
-    if (existingPhoto) {
-      await knex('student_photos').where({ id: existingPhoto.id }).delete();
-    }
+    // Para fotos de progresso, não deletar fotos anteriores - apenas adicionar nova
 
     // Upload file to Cloudinary
     const uploadResult = await CloudinaryStorageService.uploadStudentProfilePhoto(
@@ -100,13 +81,13 @@ class ClientePhotosController {
     const filepath = uploadResult.downloadURL;
 
     // Salvar informações da foto no banco de dados
-    console.log('Salvando foto no banco de dados:', {
+    console.log('Salvando foto de progresso no banco de dados:', {
       student_id,
       filename: uploadResult.filename,
       filepath,
       mimetype: file.mimetype,
       size: file.size,
-      is_profile: true
+      is_profile: false // Fotos de progresso não são fotos de perfil
     });
 
     const insertResult = await knex('student_photos').insert({
@@ -115,7 +96,7 @@ class ClientePhotosController {
       filepath,
       mimetype: file.mimetype,
       size: file.size,
-      is_profile: true,
+      is_profile: false, // Fotos de progresso não são fotos de perfil
       created_at: knex.fn.now(),
       updated_at: knex.fn.now()
     }).returning('*');
@@ -155,7 +136,7 @@ class ClientePhotosController {
 
     // Buscar todas as fotos de progresso do estudante ordenadas por data (mais recente primeiro)
     const photos = await knex('student_photos')
-      .where({ student_id, is_profile: true })
+      .where({ student_id, is_profile: false })
       .orderBy('created_at', 'desc')
       .select('*');
     
@@ -206,7 +187,8 @@ class ClientePhotosController {
     console.log('Student ID:', student_id);
 
     const photo = await knex('student_photos')
-      .where({ student_id, is_profile: true })
+      .where({ student_id, is_profile: false })
+      .orderBy('created_at', 'desc')
       .first();
 
     console.log('Foto encontrada no banco:', photo);
@@ -247,7 +229,8 @@ class ClientePhotosController {
     const { student_id } = req.params as any;
 
     const photo = await knex('student_photos')
-      .where({ student_id, is_profile: true })
+      .where({ student_id, is_profile: false })
+      .orderBy('created_at', 'desc')
       .first();
 
     if (!photo) {
