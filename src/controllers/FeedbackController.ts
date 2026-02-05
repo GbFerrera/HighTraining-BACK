@@ -16,12 +16,8 @@ class FeedbackController {
    *         application/json:
    *           schema:
    *             type: object
-   *             required: [admin_id, trainer_id, student_id, note]
+   *             required: [student_id, note]
    *             properties:
-   *               admin_id:
-   *                 type: integer
-   *               trainer_id:
-   *                 type: integer
    *               student_id:
    *                 type: integer
    *               note:
@@ -40,50 +36,41 @@ class FeedbackController {
    *             schema:
    *               $ref: '#/components/schemas/Error'
    *       404:
-   *         description: Admin, treinador ou cliente não encontrado
+   *         description: Cliente não encontrado
    *         content:
    *           application/json:
    *             schema:
    *               $ref: '#/components/schemas/Error'
    */
   async create(req: Request, res: Response): Promise<Response> {
-    const { admin_id, trainer_id, student_id, note } = req.body;
-
+    const { student_id, note } = req.body;
+    console.log(req.body)
     // Validações básicas
-    if (!admin_id || !trainer_id || !student_id || !note) {
-      throw new AppError('Todos os campos são obrigatórios: admin_id, trainer_id, student_id, note', 400);
+    if (!student_id || !note) {
+      throw new AppError('Todos os campos são obrigatórios: student_id, note', 400);
     }
 
-    if (isNaN(Number(admin_id)) || isNaN(Number(trainer_id)) || isNaN(Number(student_id))) {
-      throw new AppError('IDs devem ser números válidos', 400);
+    if (isNaN(Number(student_id))) {
+      throw new AppError('student_id deve ser um número válido', 400);
     }
 
     if (typeof note !== 'string' || note.trim().length === 0) {
       throw new AppError('A nota deve ser um texto válido', 400);
     }
 
-    // Verificar se admin existe
-    const admin = await knex('admins').where({ id: admin_id }).first();
-    if (!admin) {
-      throw new AppError('Admin não encontrado', 404);
-    }
-
-    // Verificar se treinador existe
-    const treinador = await knex('trainers').where({ id: trainer_id }).first();
-    if (!treinador) {
-      throw new AppError('Treinador não encontrado', 404);
-    }
-
-    // Verificar se cliente existe
+    // Verificar se cliente existe e obter o treinador vinculado
     const cliente = await knex('students').where({ id: student_id }).first();
     if (!cliente) {
       throw new AppError('Cliente não encontrado', 404);
     }
 
+    if (!cliente.trainer_id) {
+      throw new AppError('Cliente não está vinculado a nenhum treinador', 400);
+    }
+
     // Criar feedback
     const insertResult = await knex('feedback').insert({
-      admin_id,
-      trainer_id,
+      trainer_id: cliente.trainer_id,
       student_id,
       note: note.trim(),
       created_at: knex.fn.now(),
@@ -96,7 +83,7 @@ class FeedbackController {
     try {
       const notificationService = req.app.get('notificationService') as NotificationService;
       if (notificationService) {
-        await notificationService.sendFeedbackNotification(trainer_id, {
+        await notificationService.sendFeedbackNotification(cliente.trainer_id, {
           id: feedback.id,
           student_id,
           student_name: cliente.name,
@@ -119,11 +106,6 @@ class FeedbackController {
    *     summary: List feedbacks
    *     tags: [Feedback]
    *     parameters:
-   *       - in: query
-   *         name: admin_id
-   *         schema:
-   *           type: integer
-   *         description: Filtrar por ID do admin
    *       - in: query
    *         name: trainer_id
    *         schema:
@@ -160,30 +142,21 @@ class FeedbackController {
    *                     type: object
    *                 pagination:
    *                   type: object
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/FeedbackListResponse'
    */
   async index(req: Request, res: Response): Promise<Response> {
-    const { admin_id, trainer_id, student_id, page = 1, limit = 10 } = req.query as any;
+    const { trainer_id, student_id, page = 1, limit = 10 } = req.query as any;
 
     let query = knex('feedback')
       .select(
         'feedback.*',
-        'admins.name as admin_name',
         'trainers.name as trainer_name',
         'students.name as student_name'
       )
-      .leftJoin('admins', 'feedback.admin_id', 'admins.id')
       .leftJoin('trainers', 'feedback.trainer_id', 'trainers.id')
       .leftJoin('students', 'feedback.student_id', 'students.id')
       .orderBy('feedback.created_at', 'desc');
 
     // Aplicar filtros se fornecidos
-    if (admin_id) {
-      query = query.where('feedback.admin_id', admin_id);
-    }
     if (trainer_id) {
       query = query.where('feedback.trainer_id', trainer_id);
     }
@@ -200,7 +173,6 @@ class FeedbackController {
 
     // Contar total para paginação
     let countQuery = knex('feedback').count('* as total');
-    if (admin_id) countQuery = countQuery.where('admin_id', admin_id);
     if (trainer_id) countQuery = countQuery.where('trainer_id', trainer_id);
     if (student_id) countQuery = countQuery.where('student_id', student_id);
 
@@ -254,11 +226,9 @@ class FeedbackController {
     const feedback = await knex('feedback')
       .select(
         'feedback.*',
-        'admins.name as admin_name',
         'trainers.name as trainer_name',
         'students.name as student_name'
       )
-      .leftJoin('admins', 'feedback.admin_id', 'admins.id')
       .leftJoin('trainers', 'feedback.trainer_id', 'trainers.id')
       .leftJoin('students', 'feedback.student_id', 'students.id')
       .where('feedback.id', id)
